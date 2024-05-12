@@ -11,10 +11,10 @@
 **{fmt}** is an open-source formatting library providing a fast and safe
 alternative to C stdio and C++ iostreams.
 
-If you like this project, please consider donating to one of the funds
-that help victims of the war in Ukraine: <https://www.stopputin.net/>.
+This version is a fork of the original {fmt} library with addition of the
+formatter tags, similar to iostream manipulators.
 
-[Documentation](https://fmt.dev)
+[Documentation](tree/master/doc/index.rst)
 
 [Cheat Sheets](https://hackingcpp.com/cpp/libs/fmt.html)
 
@@ -33,6 +33,8 @@ Try {fmt} in [Compiler Explorer](https://godbolt.org/z/8Mx1EW73v).
 - [Format string syntax](https://fmt.dev/latest/syntax.html) similar
   to Python\'s
   [format](https://docs.python.org/3/library/stdtypes.html#str.format)
+- [Tagged formatting support](tree/master/doc/tagged.rst) that provides
+  formatting tags similar to iostream manipulators
 - Fast IEEE 754 floating-point formatter with correct rounding,
   shortness and round-trip guarantees using the
   [Dragonbox](https://github.com/jk-jeon/dragonbox) algorithm

@@ -2355,8 +2355,6 @@ struct format_specs {
   void apply(simple_format_tag<format_tag_type::noshowbase>) { }
 
   // Use 'fillzero' to fill the left side of the value up to the defined width.
-  // XXX Consider int_format_tag 'fill' to allow specifying a character used for filling.
-  // Note that it may require changing int_format_tag to a more general arg_format_tag<tag, TYPE>.
   template<typename ValueType>
   void apply(simple_format_tag<format_tag_type::fillzero>) { fill = string_view("0"); }
   template<typename ValueType>

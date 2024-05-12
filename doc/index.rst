@@ -16,16 +16,21 @@ alternative to C stdio and C++ iostreams.
      </div>
    </div>
 
+This version is a forked version of **{fmt}**, which provides additionally
+the formatter tags and facilities for sequenced formatting in order to have
+an almost perfect drop-in replacement for iostreams and any printing and logging
+solutions based on iostreams - `see below <#tagged>`_.
+
 .. _format-api-intro:
 
-Format API
-----------
+String-based format API
+-----------------------
 
-The format API is similar in spirit to the C ``printf`` family of function but
-is safer, simpler and several times `faster
+The string-based format API is similar in spirit to the C ``printf`` family of
+function, although it is safer, simpler and several times `faster
 <https://www.zverovich.net/2020/06/13/fast-int-to-string-revisited.html>`_
 than common standard library implementations.
-The `format string syntax <syntax.html>`_ is similar to the one used by
+The `format string syntax <syntax.rst>`_ is similar to the one used by
 `str.format <https://docs.python.org/3/library/stdtypes.html#str.format>`_ in
 Python:
 
@@ -77,6 +82,89 @@ an alternative, slightly terser syntax for named arguments:
   using namespace fmt::literals;
   fmt::print("Hello, {name}! The answer is {number}. Goodbye, {name}.",
              "name"_a="World", "number"_a=42);
+
+.. _tagged:
+
+Tagged format API
+-----------------
+
+This feature is aimed at a nearly drop-in replacement of the iostream format API.
+Two most important part of this feature are:
+
+1. Provide the named tags, similar to iostream manipulators, for formatting the value.
+2. Provide variadic functions that will format all arguments one after another and
+glue them together - the same thing that the ostream::operator<< does, just in the
+style of a function call.
+
+One of the reasons of providing operator<< for ostream was the lack of variadic
+functions in the first C++ standard. Fortunately since C++11 the variadic functions
+can be defined, so the following expression:
+
+.. code:: c++
+
+   cout << "I'd rather be " << pri[0] << " than " << pri[1] << "\n";
+
+can be also written as:
+
+.. code:: c++
+
+   ffprint(cout, "I'd rather be ", pri[0], " than ", pri[1], "\n");
+
+By weird reasons, however, it was chosen that ostream will use the formatting
+settings as a state. In result, if you want to print the value of RGBA, you
+can do simply:
+
+.. code:: c++
+
+   cout << hex << setfill('0') << setw(2) << r << g << b << a;
+
+just the problem is that if you try to put ``<< " " <<`` between the values,
+this will result in printing zero followed by a space. This problem doesn't
+have a simple solution - either you reset the stream flags after printing
+each value (before C++98 there was an idea that these manipulators only change
+settings for the next value and get reset after this one is printed) or just
+resolve to ``sprintf("%02 x%02 x%02 x%02x", r, g, b, a)``.
+
+The tagged format API provides the same thing, while not using the state to
+keep the formatting settings - all formatting settings are assigned to the
+individual value. So you can still use tagged formatters:
+
+.. code:: c++
+
+   ffprint(cout, ffmt(r, hex, fillzero, width(2)), " ",
+				 ffmt(g, hex, fillzero, width(2)), " ",
+				 ffmt(b, hex, fillzero, width(2)), " ",
+				 ffmt(a, hex, fillzero, width(2)));
+
+and also the string formatters:
+
+.. code:: c++
+
+   ffprint(cout, ffmt(r, "02x"), " ",
+				 ffmt(g, "02x"), " ",
+				 ffmt(b, "02x"), " ",
+				 ffmt(a, "02x"));
+
+The above examples using the string-based format can be then rewritten as:
+
+.. code:: c++
+
+  std::string s = fmt::ffcat("The answer is ", 42, ".");
+  
+  // with memory_buffer:
+
+  auto out = fmt::memory_buffer();
+  fmt::ffmto(std::back_inserter(out),
+            "For a moment, ", "nothing", " happened.");
+  auto data = out.data(); // pointer to the formatted data
+  auto size = out.size(); // size of the formatted data
+
+  // And printing:
+
+  fmt::ffprint(stderr, "System error code = ", errno, "\n");
+
+See `Tagged formatting documentation <tagged.rst>`_ for more information.
+
 
 .. _safety:
 
