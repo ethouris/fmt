@@ -90,6 +90,22 @@ void write_buffer(std::basic_ostream<Char>& os, buffer<Char>& buf) {
   } while (size != 0);
 }
 
+// The same repeated - maybe the above would be useless this way.
+template <typename Char, typename Bufferlike> FMT_INLINE
+void write_directly(std::basic_ostream<Char>& os, const Bufferlike& buf) {
+  const Char* buf_data = buf.data();
+  using unsigned_streamsize = std::make_unsigned<std::streamsize>::type;
+  unsigned_streamsize size = buf.size();
+  unsigned_streamsize max_size = to_unsigned(max_value<std::streamsize>());
+  do {
+    unsigned_streamsize n = size <= max_size ? size : max_size;
+    os.write(buf_data, static_cast<std::streamsize>(n));
+    buf_data += n;
+    size -= n;
+  } while (size != 0);
+}
+
+
 template <typename Char, typename T>
 void format_value(buffer<Char>& buf, const T& value) {
   auto&& format_buf = formatbuf<std::basic_streambuf<Char>>(buf);
@@ -206,6 +222,17 @@ void println(std::wostream& os,
              basic_format_string<wchar_t, type_identity_t<Args>...> fmt,
              Args&&... args) {
   print(os, L"{}\n", fmt::format(fmt, std::forward<Args>(args)...));
+}
+
+// Added so that you can use `cout << ffmt(value... )` syntax.
+// This allows to print a single basic_memory_buffer to ostream.
+// Note that - in distinction to string or string_view - it bypasses
+// any formatting settings of the ostream object.
+FMT_EXPORT template <typename Char>
+FMT_INLINE std::basic_ostream<Char>& operator<<(std::basic_ostream<Char>& sout, const basic_memory_buffer<Char>& val)
+{
+    sout.write(val.data(), val.size());
+    return sout;
 }
 
 FMT_END_NAMESPACE

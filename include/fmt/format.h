@@ -4335,6 +4335,25 @@ FMT_CONSTEXPR FMT_INLINE auto native_formatter<T, Char, TYPE>::format(
                                          ctx);
   return write<Char>(ctx.out(), val, specs, ctx.locale());
 }
+
+// We need this so that the universal write_buffer() can be used in
+// the implementation of ffprint().
+template <typename CharType, typename Bufferlike>
+FMT_INLINE void write_directly(std::FILE& stream, const Bufferlike& buf)
+{
+  // Could use fwrite_fully(), but this disregards wchar_t.
+
+  auto ptr = buf.data();
+  const auto count = buf.size();
+
+  // XXX Here fallthru to Windows's write_console() if you want.
+
+  // Expanded fwrite_fully, but adjusted to the char size.
+  size_t written = std::fwrite(ptr, sizeof(CharType), count, &stream);
+  if (written < count)
+    FMT_THROW(system_error(errno, FMT_STRING("cannot write to file")));
+}
+
 }  // namespace detail
 
 template <typename Char>
@@ -4428,6 +4447,320 @@ FMT_NODISCARD FMT_INLINE auto formatted_size(const Locale& loc,
                            detail::locale_ref(loc));
   return buf.count();
 }
+
+
+// Tagged formatting support
+//
+// The general idea of the tagged formatting is that you don't use the
+// format string at all. You simply pass all arguments one after another as
+// they should appear in the output. For example:
+//
+// ffprint(cout, "My name is ", name, " and I am ", age, " years old.\n");
+//
+// In this case values are formatted using the default formatting rules,
+// e.g. the string is written as is and the number is decimal with no
+// prefixes and leading zeros. If you want to use any different formatting,
+// you have to surround the value with ffmt() call:
+//
+// ffprint(cout, "My weight is ", ffmt(weight, fixed, precision(4)), "\n");
+//
+// OR specify the tags like in the format string, just for only one single
+// value:
+//
+// ffprint(cout, "My weight is ", ffmt(weight, ".04f"), "\n");
+//
+// Names of the tags are chosen to be similar to those already existing
+// as the iostream manipulators. However they are not interchangeable
+// due to several reasons, including that formatting rules of the {fmt}
+// library are slightly different than those for iostream.
+//
+// The mechanism for formatting values is provided the following way:
+//
+// 1. You send a value to the destination container (stream or string container).
+//    To do this, you can use ffprint (for a stream), ffwrite (for a container),
+//    or ffcat (same as ffwrite, just creates and returns the resulting string).
+// 2. If the value is one of these types:
+//    * std::string/wstring
+//    * fmt::basic_memory_buffer
+//    * array of chars (passed as reference)
+//    * std::string_view
+//    then it is sent to the output DIRECTLY (by copying contained characters).
+//    For all other types the value is passed through `ffmt` function with no
+//    formatters, which will use default rules and return fmt::basic_memory_buffer.
+// 3. If you use a format-handling stream, the format handling state is ignored.
+//    The ffprint function can be used with both stdio's FILE type and
+//    std::ostream; for the latter there's used the std::ostream::write() call,
+//    that is, it bypasses any formatting facilities of std::ostream.
+// 4. The idea is: whatever you send as a value to the stream or output container,
+//    it should be formatted using the default rules. For any other rules, surround
+//    the value with ffmt() call, specifying the formatting settings, using either
+//    formatting tags or a formatting string.
+//
+// Available functions:
+//
+// ffmt/wffmt(value, formatters...):
+//     Format a single value using formatters..., the result is basic_memory_buffer.
+//     The call of this can be useful inside ffprint() or ffcat() calls, as well
+//     as passing it as an << operator for ostream (not recommended, although possible).
+//
+// ffprint(stream, args...):
+//     Format all args... and print them on the stream one after another.
+//
+// ffcat/wffcat(args...):
+//     Format all args... and return the concatenated string/wstring
+//
+// ffmto(iterator, value, formatters...):
+//     Format a single value using formatters... and write it to a character
+//     container using iterator.
+//
+// ffmts/wffmts(value, formatters...);
+//     Format a single value using formatters... and return a string/wstring
+//     with the result. This is a shortcut to ffcat(ffmt(value, formatters...))
+//     stating that ffcat is called with only one argument.
+
+
+// We use the naming convention from iostream: wide-character
+// functions use w- prefix. So, ffmt is <char>, wffmt is <wchar_t>.
+template <class CharType, class Value, typename... Args>
+FMT_INLINE basic_memory_buffer<CharType> basic_ffmt(Value v, Args&&... formatters) {
+    basic_memory_buffer<CharType> outbuf;
+    typedef basic_appender<CharType> OutputIt;
+    //auto out = detail::buffer_appender<CharType>(outbuf);
+    auto out = OutputIt(outbuf);
+    [[maybe_unused]] auto end = fmt::detail::write<CharType>(out, v, format_specs::with<Value>(formatters...), fmt::detail::locale_ref());
+    return outbuf;
+}
+
+template <class Value, typename... Args>
+FMT_INLINE basic_memory_buffer<char> ffmt(const Value& v, Args&&... formatters) {
+    return basic_ffmt<char>(v, formatters...);
+}
+
+template <class Value, typename... Args>
+FMT_INLINE basic_memory_buffer<wchar_t> wffmt(const Value& v, Args&&... formatters) {
+    return basic_ffmt<wchar_t>(v, formatters...);
+}
+
+// ffprint: printing subsequent arguments to the stream.
+// XXX The name was added this way to avoid name conflicts,
+// but it might be possibly doable to name it just 'print'.
+//
+// General wrapper that translates pointer to reference. This is required to
+// support correctly both FILE* and std::ostream& arguments.
+template <class Stream, class AnyArgument>
+FMT_INLINE void ffprint_one(Stream* sout, const AnyArgument& arg)
+{
+    return ffprint_one(*sout, arg);
+}
+
+namespace detail
+{
+// Make a declaration because due to the order of declaration this one
+// isn't taken into account, even if "ostream.h" is included.
+template <typename Char, typename Bufferlike>
+void write_directly(std::basic_ostream<Char>& os, const Bufferlike& buf);
+
+// XXX There likely exists some char type mapper, but let's solve this later.
+template <class Stream>
+struct stream_char
+{
+    typedef typename Stream::char_type type;
+};
+
+template<>
+struct stream_char<FILE*>
+{
+    // Not sure how exactly wide characters are printed using FILE.
+    typedef char type;
+};
+
+
+}
+
+template <class Stream, class CharType>
+FMT_INLINE void ffprint_one(Stream& sout, const std::basic_string<CharType>& str)
+{
+    detail::write_directly<CharType>(sout, str);
+}
+
+template <class Stream, class CharType>
+FMT_INLINE void ffprint_one(Stream& sout, const std::basic_string_view<CharType>& str)
+{
+    detail::write_directly<CharType>(sout, str);
+}
+
+template <class Stream, class CharType>
+FMT_INLINE void ffprint_one(Stream& sout, const fmt::basic_memory_buffer<CharType>& str)
+{
+    detail::write_directly<CharType>(sout, str);
+}
+
+template <class Stream, class CharType, size_t N>
+FMT_INLINE void ffprint_one(Stream& sout, const CharType (&str)[N])
+{
+    // Bah. This is stupid.
+    struct ArrayAdapter
+    {
+        const CharType* d;
+        size_t s;
+
+        const CharType* data() const { return d; }
+        size_t size() const { return s; }
+    };
+
+    detail::write_directly<CharType>(sout, ArrayAdapter {str, N});
+}
+
+// Duh. Leave it for now, but this isn't done the right way.
+// If you want to use the UCS encoding and wchar_t type for
+// characters, then this would have to be reworked this way:
+//
+// 1. A special tool class should be added that would extract
+//    the character type from the Stream type. This will be
+//    then passed down the chain so that the right CharType is
+//    used in subsequent calls.
+// 2. This can be explicitly implemented for std::ostream.
+// 3. For FILE* it would have to be stated that we simply use char.
+//    In case you want to use wchar_t with FILE*, then this type
+//    would have to be specified directly like ffprint_t<wchar_t>(...).
+//
+// This is too complicated for the first version and barely worth a shot.
+
+template <class Stream, class AnyOther>
+FMT_INLINE void ffprint_one(Stream& sout, const AnyOther& str)
+{
+    // For all other types, pass it through ffmt with default settings.
+    ffprint_one(sout, ffmt(str));
+}
+
+// Ok, this is ffprint().
+// You can use it with both FILE* and std::ostream, whichever you prefer.
+// Mind that you need to use ffmt() for nondefault formatting 
+
+template <class Stream>
+FMT_INLINE Stream& ffprint(Stream& sout)
+{
+    return sout;
+}
+
+template <class Stream, class Arg1, class... Args>
+FMT_INLINE Stream& ffprint(Stream& sout, Arg1&& arg1, Args&&... args)
+{
+    //typedef typename detail::stream_char<Stream>::type CharType;
+    ffprint_one(sout, arg1);
+    return ffprint(sout, args...);
+}
+
+
+template <class OutIter, class CharType>
+FMT_INLINE void ffcat_one(OutIter out, const std::basic_string<CharType>& str)
+{
+    std::copy(str.begin(), str.end(), out);
+}
+
+template <class OutIter, class CharType>
+FMT_INLINE void ffcat_one(OutIter out, const std::basic_string_view<CharType>& str)
+{
+    std::copy(str.begin(), str.end(), out);
+}
+
+template <class OutIter, class CharType>
+FMT_INLINE void ffcat_one(OutIter out, const fmt::basic_memory_buffer<CharType>& str)
+{
+    std::copy(str.begin(), str.end(), out);
+}
+
+template <class OutIter, class CharType, size_t N>
+FMT_INLINE void ffcat_one(OutIter out, const CharType (&str)[N])
+{
+    std::copy(str, str + N, out);
+}
+
+template <class OutIter, class AnyOther>
+FMT_INLINE void ffcat_one(OutIter out, const AnyOther& str)
+{
+    // For all other types, pass it through ffmt with default settings.
+    // This will redirect to the version with basic_memory_buffer.
+    // If you passed a value through ffmt() explicitly, it will return
+    // also basic_memory_buffer.
+    ffcat_one(out, ffmt(str));
+}
+
+
+template <class StringType>
+FMT_INLINE void ffcat_chain(StringType& ) {}
+
+template <class StringType, class Arg1, class... Args>
+FMT_INLINE void ffcat_chain(StringType& out, Arg1&& arg1, Args&&... args)
+{
+    ffcat_one(std::back_inserter(out), arg1);
+    return ffcat_chain<StringType>(out, args...);
+}
+
+template <class... Args>
+FMT_INLINE std::string ffcat(Args&&... args)
+{
+    std::string out;
+    ffcat_chain<std::string>((out), args...);
+    return out;
+}
+
+template <class... Args>
+FMT_INLINE std::wstring wffcat(Args&&... args)
+{
+    std::wstring out;
+    ffcat_chain<std::wstring>((out), args...);
+    return out;
+}
+
+template <class Container, class... Args>
+FMT_INLINE Container& ffwrite(Container& out, Args&&... args)
+{
+    typedef typename Container::value_type CharType;
+    ffcat_chain<CharType>((out), args...);
+    return out;
+}
+
+
+// ffmto: format and write as characters through the iterator.
+// This is useless as a user's API, but useful for creating any user wrappers.
+
+template <class CharType, class OutIter, class Value, typename... Args>
+FMT_INLINE OutIter basic_ffmto(OutIter out, const Value& v, Args... formatters) {
+    return fmt::detail::write<CharType>(out, v, format_specs::with<Value>(formatters...), fmt::detail::locale_ref());
+}
+
+template <class OutIter, class Value, typename... Args>
+FMT_INLINE OutIter ffmto(OutIter out, const Value& v, Args... formatters) {
+    return basic_ffmto<char>(out, v, formatters...);
+}
+
+template <class OutIter, class Value, typename... Args>
+FMT_INLINE OutIter wffmto(OutIter out, const Value& v, Args... formatters) {
+    return basic_ffmto<wchar_t>(out, v, formatters...);
+}
+
+// ffmts: format a single value as a given string type
+// It actually does the same as ffcat(ffmt(value, formatters...)) for just one
+// argument passed to ffcat.
+
+template <class String, class Value, typename... Args>
+FMT_INLINE String basic_ffmts(Value v, Args... formatters) {
+    String str;
+    ffmto(std::back_inserter(str), v, formatters...);
+    return str;
+}
+
+template <class Value, typename... Args>
+FMT_INLINE std::string ffmts(Value v, Args... formatters) {
+    return basic_ffmts<std::string>(v, formatters...);
+}
+
+template <class Value, typename... Args>
+FMT_INLINE std::wstring wffmts(Value v, Args... formatters) {
+    return basic_ffmts<std::wstring>(v, formatters...);
+}
+
 
 FMT_END_EXPORT
 

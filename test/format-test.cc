@@ -25,6 +25,8 @@
 #include <thread>              // std::thread
 #include <type_traits>         // std::is_default_constructible
 
+#include <iostream>
+
 #include "gtest-extra.h"
 #include "mock-allocator.h"
 #include "util.h"
@@ -2393,4 +2395,35 @@ FMT_END_NAMESPACE
 TEST(format_test, formatter_overrides_implicit_conversion) {
   EXPECT_EQ(fmt::format("{}", convertible_to_int()), "x");
   EXPECT_EQ(fmt::format("{}", convertible_to_cstring()), "y");
+}
+
+TEST(format_test, tagged_formatters) {
+
+    using std::string;
+
+  EXPECT_EQ(fmt::ffmts(123.0, fmt::fixed, fmt::falt, fmt::precision(0)), "123.");
+
+  EXPECT_EQ(fmt::ffmts(1.234, fmt::precision(2), fmt::fixed), "1.23");
+  EXPECT_EQ(fmt::ffmts(0.001, fmt::precision(1), fmt::general), "0.001");
+  EXPECT_EQ(fmt::ffmts(1019666432.0f), "1019666400");
+  EXPECT_EQ(fmt::ffmts(9.5, fmt::precision(0), fmt::scientific), "1e+01");
+  EXPECT_EQ(fmt::ffmts(1e-34, fmt::scientific, fmt::precision(1)), "1.0e-34");
+
+  EXPECT_EQ(fmt::ffmts("str", fmt::precision(2)), "st");
+  EXPECT_EQ(fmt::ffmts("123456\xad", fmt::precision(6)), "123456");
+
+  EXPECT_EQ(fmt::ffmts("str", ".2"), "st");
+
+  EXPECT_EQ(fmt::ffmts(0.0, "9.1e"), "  0.0e+00");
+  EXPECT_EQ(fmt::ffmts(0.0, fmt::width(9), fmt::precision(1), fmt::scientific), "  0.0e+00");
+
+  // This is for compile and exception test only.
+  /*
+  fmt::ffprint(std::cout, fmt::ffmt(123.0, fmt::fixed, fmt::falt, fmt::precision(0)),
+          fmt::ffmt("str", ".2"), "\n");
+
+  fmt::ffprint(std::wcout, fmt::wffmt(123.0, fmt::fixed, fmt::falt, fmt::precision(0)),
+          fmt::wffmt(L"str", L".2"), L"\n");
+          */
+
 }

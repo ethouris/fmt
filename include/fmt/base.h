@@ -2139,6 +2139,155 @@ enum class presentation_type : unsigned char {
   hexfloat  // 'a' or 'A'
 };
 
+// Tag support in the style of iostream manipulators
+enum class format_tag_type {
+    // Alignment marker, default: right.
+    right, left, center,
+    // Sign marker, default: showneg (only show minus if negative)
+    showneg, showpos, showspace,
+    // Base prefix marker, default: noshowbase
+    noshowbase, showbase,
+    // Fill marker, default: fillspace
+    fillspace, fillzero, fill,
+    // Base marker, default: dec
+    // base and ubase have argument
+    dec, hex, uhex, bin, ubin, oct, //base, ubase,
+    // Float marker, default: fixed
+    fixed, scientific, general, fhex,
+          uscientific, ugeneral, ufhex,
+    // Modifiers with arguments. Default precision is type dependent
+    width, precision,
+    // Special marker for debugging strings and escaping nonprintable characters.
+    // Conflicts with: dec/hex/bin/fixed/fhex etc.
+    fdebug
+};
+
+template <format_tag_type type> struct simple_format_tag { };
+
+template <format_tag_type id>
+class int_format_tag {
+    const unsigned value;
+public:
+    constexpr int_format_tag(unsigned v): value(v) {}
+    constexpr unsigned val() const { return value; }
+};
+
+// Special case for 'fill' modifier
+template <format_tag_type id, typename Char>
+class str_format_tag {
+    const basic_string_view<Char> value;
+public:
+    constexpr str_format_tag(basic_string_view<Char> v): value(v) {}
+    constexpr basic_string_view<Char> val() const { return value; }
+};
+
+// Example: This below defines:
+// using right_tag = simple_format_tag<format_tag_type::right>;
+// static const right_tag right;
+// This effectively defines a constant of a distinct type usable this way:
+// cout << ffmt(value, right) << endl;
+
+// Alignment: right (default), left, center
+static const simple_format_tag<format_tag_type::right> right;
+static const simple_format_tag<format_tag_type::left> left;
+static const simple_format_tag<format_tag_type::center> center;
+
+// How to print positive numbers:
+// showneg: do not prefix positive numbers (default)
+// showspace: prefix positive numbers with a space
+// showpos: prefix positive numbers with a plus sign
+// XXX Consider: prefix positive number with a custom character?
+static const simple_format_tag<format_tag_type::showneg> showneg;
+static const simple_format_tag<format_tag_type::showpos> showpos;
+static const simple_format_tag<format_tag_type::showspace> showspace;
+
+// Alternative form with type dependent meaning:
+// Integers: use base prefix (0x for hex, 0 for oct, 0b for bin)
+// Floating: leave the dot in fixed form even if the fraction part is zero
+// Turn on: showbase, showpoint, falt
+// Turn off (default): noshowbase, noshowpoint, nofalt
+static const simple_format_tag<format_tag_type::noshowbase> noshowbase;
+static const simple_format_tag<format_tag_type::noshowbase> nofalt;
+static const simple_format_tag<format_tag_type::noshowbase> noshowpoint;
+static const simple_format_tag<format_tag_type::showbase> showbase;
+static const simple_format_tag<format_tag_type::showbase> showpoint;
+static const simple_format_tag<format_tag_type::showbase> falt;
+
+// Filling the space not occupied by the value when width is enforced:
+// fillspace: fill it with a space character (default)
+// fillzero: fill it with '0' character (note: DO NOT use 'left' ;)
+// fill(character): fill it with the given character.
+static const simple_format_tag<format_tag_type::fillspace> fillspace;
+static const simple_format_tag<format_tag_type::fillzero> fillzero;
+
+// We need to deduce the character type, so "using" can't be used.
+template <class Char> inline
+str_format_tag<format_tag_type::fill, Char> fill(basic_string_view<Char> arg)
+{
+    return str_format_tag<format_tag_type::fill, Char>(arg);
+}
+
+// Integer base: dec (default), hex, bin, oct.
+// Uppercase versions for those that may use letters: uhex, ubin.
+// Uppercase letters can be used in the hex representation.
+// Both bin and hex may use uppercase in the prefix if combined
+// with falt/showbase.
+static const simple_format_tag<format_tag_type::dec> dec;
+static const simple_format_tag<format_tag_type::hex> hex;
+static const simple_format_tag<format_tag_type::uhex> uhex;
+static const simple_format_tag<format_tag_type::bin> bin;
+static const simple_format_tag<format_tag_type::ubin> ubin;
+static const simple_format_tag<format_tag_type::oct> oct;
+
+// Floating formatting: scientific or fixed:
+// fixed: use the form <int>.<frac>
+// scientific/fexp: use the exponental form
+// general: use fixed or scientific, depending on the value and precision
+// ugeneral, uscientific, ufexp: Uppercase versions
+static const simple_format_tag<format_tag_type::fixed> fixed;
+static const simple_format_tag<format_tag_type::scientific> scientific;
+static const simple_format_tag<format_tag_type::uscientific> uscientific;
+static const simple_format_tag<format_tag_type::scientific> fexp;
+static const simple_format_tag<format_tag_type::uscientific> ufexp;
+static const simple_format_tag<format_tag_type::general> general;
+static const simple_format_tag<format_tag_type::ugeneral> ugeneral;
+
+// Hexadecimal floating-point support.
+// NOTE: hex/uhex won't have any effect on formatting the fp value.
+static const simple_format_tag<format_tag_type::fhex> fhex;
+static const simple_format_tag<format_tag_type::ufhex> ufhex;
+
+// fdebug: final printing checks every character for being printable.
+// Non-printable characters are printed special way.
+static const simple_format_tag<format_tag_type::fdebug> fdebug;
+
+// Any kind of boolalpha is not supported.
+// You can allow specifying just two values as {false, true}.
+// Although the expression `ffmt(value, boolval("no", "yes"))` is just another
+// way to say `value ? "yes" : "no"` or even `(auto []{"no", "yes"})[value]`.
+
+// These allow to use the constructor function-like call:
+//
+// ffmt(value, width(10), right)
+
+using width = int_format_tag<format_tag_type::width>;
+using precision = int_format_tag<format_tag_type::precision>;
+
+// XXX Consider: alias names setw and setprecision to allow for
+// possible drop-in replacement for iostream manipulators.
+
+// XXX Consider: a manipulator that could allow using any numeric base.
+// This would require extension of the format specs.
+// using base = int_format_tag<format_tag_type::base>;
+// using ubase = int_format_tag<format_tag_type::ubase>;
+//
+// Actually no one in the software industry really needs "any base",
+// however base 32 might be useful to encode the numbers still visible
+// way (it uses letters from A to V), but using the minimum number of
+// characters. Encodings like base 64 (not to be confused with base64) would be
+// possible, but this uses both upper- and lowercase letters plus some symbols,
+// so it wouldn't fit in visual presentation.
+
 // Format specifiers for built-in and string types.
 struct format_specs {
   int width;
@@ -2160,6 +2309,111 @@ struct format_specs {
         upper(false),
         alt(false),
         localized(false) {}
+
+  // Could use a constructor, but this messes up with the default construction.
+  template <typename ValueType, typename... Args>
+  static constexpr format_specs with(Args... args) {
+    format_specs model;
+    model.apply_chain<ValueType>(args...);
+    return model;
+  }
+
+  // Note that the tag system doesn't check if applying particular tag
+  // for given type of value makes sense or not (an improvement can be considered
+  // here as the ValueType of the expected value to be formatted is passed).
+  // You also need to distinguish the intended behavior even if it would make
+  // sense to use the same tag name for both and get it applied depending on
+  // the type - for example hex and fhex. If you want to format a
+  // floating-point value with "hexfloat", use fhex. Just hex will do nothing,
+  // unless the argument is integer.
+  //
+  // Also other pointless combinations are not checked. For example, you can specify
+  // `left` and `right` for the same value and the result will be according to the last
+  // tag that applies to the same aspect.
+
+  // Align tags: left, right, center.
+  // XXX Consider "noalign" as a pointless marker to define the default value.
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::right>) { align = align_t::right; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::left>) { align = align_t::left; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::center>) { align = align_t::center; }
+
+  // Sign tags: meaningful for positive values only. 'showneg' is default and prints nothing.
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::showpos>) { sign = sign_t::plus; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::showneg>) { sign = sign_t::none; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::showspace>) { sign = sign_t::space; }
+
+  // You can turn on 'alt' (shows 0x/0/0b prefix) using 'showbase' or 'falt'.
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::showbase>) { alt = true; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::noshowbase>) { }
+
+  // Use 'fillzero' to fill the left side of the value up to the defined width.
+  // XXX Consider int_format_tag 'fill' to allow specifying a character used for filling.
+  // Note that it may require changing int_format_tag to a more general arg_format_tag<tag, TYPE>.
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::fillzero>) { fill = string_view("0"); }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::fillspace>) { }
+
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::dec>) { type = presentation_type::dec; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::hex>) { type = presentation_type::hex; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::uhex>) { type = presentation_type::hex; upper = true; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::bin>) { type = presentation_type::bin; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::ubin>) { type = presentation_type::bin; upper = true; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::oct>) { type = presentation_type::oct; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::general>) { type = presentation_type::general; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::ugeneral>) { type = presentation_type::general; upper = true; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::fixed>) { type = presentation_type::fixed; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::scientific>) { type = presentation_type::exp; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::uscientific>) { type = presentation_type::exp; upper = true; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::fhex>) { type = presentation_type::hexfloat; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::ufhex>) { type = presentation_type::hexfloat; upper = true; }
+  template<typename ValueType>
+  void apply(simple_format_tag<format_tag_type::fdebug>) { type = presentation_type::debug; }
+
+  template<typename ValueType>
+  void apply(int_format_tag<format_tag_type::width> w) { width = w.val(); }
+  template<typename ValueType>
+  void apply(int_format_tag<format_tag_type::precision> p) { precision = p.val(); }
+
+  // XXX Kinda stub version using a string literal
+  // This could be CharType[N], but the way how the formatters are passed
+  // would have to be fixed. Currenlty they are passed by value and this way
+  // it would be recognized by the type mapper as custom type, which is unwanted
+  // (the library will not recognize it properly).
+  template<typename ValueType, class CharType>
+  void apply(const CharType* fmtstr);
+
+  template<typename ValueType>
+  constexpr void apply_chain() {}
+
+  template <typename ValueType, typename Arg1, typename... Args>
+  constexpr void apply_chain(Arg1 a1, Args... args)
+  {
+    apply<ValueType>(a1);
+    apply_chain<ValueType>(args...);
+  }
+
 };
 
 namespace detail {
@@ -2198,6 +2452,35 @@ template <typename Char = char> struct dynamic_format_specs : format_specs {
   arg_ref<Char> width_ref;
   arg_ref<Char> precision_ref;
 };
+
+}
+
+template<typename ValueType, class CharType>
+FMT_INLINE void format_specs::apply(const CharType* fmtstr)
+{
+    using namespace detail;
+
+    // XXX Do some tricks so that the constant string can be calculated
+    // at compile time and possibly also passed by string_view.
+
+    dynamic_format_specs<CharType> output;
+    basic_format_parse_context<CharType> ctx(fmtstr);
+
+    const CharType* begin = fmtstr,
+          * end = fmtstr + detail::length(fmtstr),
+          * past;
+
+    past = parse_format_specs(begin, end, (output), (ctx),
+            type_constant<ValueType, CharType>::value);
+
+    // Ignore the call completely if the format wasn't parsed
+    // NOTE: formatting that uses embedded width or precision WILL NOT
+    // be parsed correctly, as the corresponding arguments won't be grabbed.
+    if (past != begin)
+        *this = output;
+}
+
+namespace detail {
 
 // Converts a character to ASCII. Returns '\0' on conversion failure.
 template <typename Char, FMT_ENABLE_IF(std::is_integral<Char>::value)>
