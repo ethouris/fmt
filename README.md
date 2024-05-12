@@ -14,7 +14,7 @@ alternative to C stdio and C++ iostreams.
 This version is a fork of the original {fmt} library with addition of the
 formatter tags, similar to iostream manipulators.
 
-[Documentation](tree/master/doc/index.rst)
+[Documentation](doc/index.rst)
 
 [Cheat Sheets](https://hackingcpp.com/cpp/libs/fmt.html)
 

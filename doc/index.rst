@@ -93,10 +93,10 @@ Two most important part of this feature are:
 
 1. Provide the named tags, similar to iostream manipulators, for formatting the value.
 2. Provide variadic functions that will format all arguments one after another and
-glue them together - the same thing that the ostream::operator<< does, just in the
-style of a function call.
+   glue them together - the same thing that the ``ostream::operator<<`` does, just in the
+   style of a function call.
 
-One of the reasons of providing operator<< for ostream was the lack of variadic
+One of the reasons of providing ``operator<<`` for ostream was the lack of variadic
 functions in the first C++ standard. Fortunately since C++11 the variadic functions
 can be defined, so the following expression:
 
@@ -123,7 +123,7 @@ this will result in printing zero followed by a space. This problem doesn't
 have a simple solution - either you reset the stream flags after printing
 each value (before C++98 there was an idea that these manipulators only change
 settings for the next value and get reset after this one is printed) or just
-resolve to ``sprintf("%02 x%02 x%02 x%02x", r, g, b, a)``.
+resolve to ``sprintf(buf, "%02 x%02 x%02 x%02x", r, g, b, a)``.
 
 The tagged format API provides the same thing, while not using the state to
 keep the formatting settings - all formatting settings are assigned to the
