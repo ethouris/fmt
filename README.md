@@ -33,7 +33,7 @@ Try {fmt} in [Compiler Explorer](https://godbolt.org/z/8Mx1EW73v).
 - [Format string syntax](https://fmt.dev/latest/syntax.html) similar
   to Python\'s
   [format](https://docs.python.org/3/library/stdtypes.html#str.format)
-- [Tagged formatting support](tree/master/doc/tagged.rst) that provides
+- [Tagged formatting support](doc/tagged.rst) that provides
   formatting tags similar to iostream manipulators
 - Fast IEEE 754 floating-point formatter with correct rounding,
   shortness and round-trip guarantees using the
