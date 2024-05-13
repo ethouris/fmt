@@ -82,6 +82,12 @@ any number of formatting tags. These tags can be the named tags, or a string wit
 formatting specification, the same as the one used in the string-based formatting.
 See below for the information about tags.
 
+Note that all of them are function templates, and the first template parameter is
+the type of the value. You can specify this type explicitly, if you want to force
+the value to be interpreted differently than it would be in its original type. This
+is often required if you use an integer value of ``uint8_t`` type, which is actually
+an alias to ``unsigned char``, and as such it's printed as a character by default.
+
 * ``ffmt``: formats the single value and returns the result as ``fmt::basic_memory_buffer``
 
 .. code:: c++
