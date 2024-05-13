@@ -20,6 +20,7 @@ The use of tagged API is based on two simple rules:
 Example: let's say, you have the following variables:
 
 .. code:: c++
+
    std::string name;
    size_t size;
    std::chrono::milliseconds duration;
@@ -27,11 +28,13 @@ Example: let's say, you have the following variables:
 When you try to print them this way:
 
 .. code:: c++
+
    fmt::ffprint(cout, "Received entity: ", name, " size=", size, " lasts up to ", duration, "\n");
 
 Then it is automatically turned into this form:
 
 .. code:: c++
+
    fmt::ffprint(cout, "Received entity: ", name, " size=", fmt::ffmt(size), " lasts up to ", fmt::ffmt(duration), "\n");
 
 and that's how they are formatted by default. If you want to apply any non-default
