@@ -17,6 +17,29 @@ The use of tagged API is based on two simple rules:
    use the ``ffmt`` function explicitly, and pass the value and the desired
    formatters.
 
+Example: let's say, you have the following variables:
+
+.. code:: c++
+   std::string name;
+   size_t size;
+   std::chrono::milliseconds duration;
+
+When you try to print them this way:
+
+.. code:: c++
+   fmt::ffprint(cout, "Received entity: ", name, " size=", size, " lasts up to ", duration, "\n");
+
+Then it is automatically turned into this form:
+
+.. code:: c++
+   fmt::ffprint(cout, "Received entity: ", name, " size=", fmt::ffmt(size), " lasts up to ", fmt::ffmt(duration), "\n");
+
+and that's how they are formatted by default. If you want to apply any non-default
+formatting for ``size``, for example, with width 6 and filled with zeros in front,
+then you should use ``fmt::ffmt(size, fmt::width(6), fmt::fillzero)``.
+
+Or ``fmt::ffmt(size, "06")``, if you prefer that way.
+
 
 Motivation: why forking {fmt}
 =============================
