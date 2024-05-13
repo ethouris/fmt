@@ -37,57 +37,14 @@ Then it is automatically turned into this form:
 
    fmt::ffprint(cout, "Received entity: ", name, " size=", fmt::ffmt(size), " lasts up to ", fmt::ffmt(duration), "\n");
 
-and that's how they are formatted by default. If you want to apply any non-default
-formatting for ``size``, for example, with width 6 and filled with zeros in front,
-then you should use ``fmt::ffmt(size, fmt::width(6), fmt::fillzero)``.
+Note here that the string-typed ``name`` is copied as is, while ``size`` is passed
+through ``fmt::ffmt`` with no formatting tags (so, formatted with default settings),
+which turns it into ``fmt::basic_memory_buffer``, which in turn is copied as is, too.
+If you want to apply any non-default formatting for ``size``, for example, with width
+6 and filled with zeros in front, then you should use
+``fmt::ffmt(size, fmt::width(6), fmt::fillzero)``.
 
 Or ``fmt::ffmt(size, "06")``, if you prefer that way.
-
-
-Motivation: why forking {fmt}
-=============================
-
-I'd like to simply explain, why I have used this library as a base for providing
-something that looks otherwise completely unrelated: a value-collecting formatter
-that almost completely discards the idea of a string-based formatter. Why haven't I
-written it just anew, but forked the {fmt} library instead? There are several reasons:
-
-1. The {fmt} library, beside the API using the string-based formatter, provides
-   also important internal facilities for formatting, mainly based on the formatter
-   structure.
-2. There are also several other facilities worth reusing, like the formatting
-   specification provided using direct string characters, just for a single value.
-3. The {fmt} library has proven to be of high performance, beating the standard
-   C++ iostream library by levels of magnitude.
-4. And of course, last but not least, the library is distributed as public-domain
-   (see the LICENSE file), so I could simply use it however I please, except
-   very light restrictions, such as keeping the LICENSE intact.
-
-Initially I was considering simply using the {fmt} library and extend its capabilities
-by making a "derived" library. That was moreover worth considering, as this library
-has been a base for the formatting library in the C++20 and C++23 standards. But this
-has become, unfortunately, impossible due to one simple reason: Neither the creators
-of the {fmt} library, nor the C++ standard guys, who have accepted this form into the
-standard library, did consider any kind of "protected API".
-
-By the "protected API" I mean something that usually is put into the protected section
-in the C++ class: it's not provided for the "end-user", so it's not public, but it is
-available for those who want to extend the class. What I lack in the {fmt} library as
-this "protected API" is the direct access to the formatting settings structure,
-the facility for translating the formatting characters into this structure, and the
-facility that does the formatting using the value of this structure. Of course, in case
-of API (that consists mainly of inline functions) you can't really make any "private"
-or "protected" sections that are inaccessible to public - but in case of API it is
-enough that simply no one guarantees that the name will remain stable across releases
-and simply it's not officially mentioned as public API. In case of the C++ standard
-library they went even further: the name is in a special convention not used in the
-public API, so not only it would look clumsy, but any derived library would not be
-portable.
-
-So, if I had to access the private API instead, and remain safe even if I'd have to
-merge the future versions, any problems with the use of private API will be on my
-head to solve, as well as newer versions of {fmt} library won't be harmful, as long
-as I don't merge them.
 
 
 Motivation: why tagged API and variadic functions
@@ -97,34 +54,38 @@ Ok, if you are interested in a long version, `here it is
 <https://sektorvanskijlen.wordpress.com/2023/11/27/format-string-considered-not-exactly-that-harmless/>`_.
 
 Short version: My professional experience confirms that the way of formatting using
-C++'s ostream is in many ways superior to string-based formatting specification.
-The only problem is the state-based setting structure, but it uses something that
-all languages have been always using, until C language came up with its ``printf``.
-For example, this is what you were using in one of the oldest programming languages,
-BASIC:
+C++'s ostream is in some ways superior to string-based formatting specification. The
+only bad design decision there was that format settings were provided as a stream
+state, but beside this it was highly advantageous over ``printf``:
+
+1. You just specify subsequent items to be printed in the order of specification.
+This is something that was used everywhere, until C language came with its ``printf``,
+already since BASIC:
 
 .. code:: basic
 
    PRINT "origin="; left; ","; bottom; " dimensions="; (right-left); " x "; (top-bottom)
 
-C++ simply offered the same thing, although due to the limitations of the first C++
-standard and the lack of variadic functions (provided only in C++11), they had
-to use the operator overloading:
+And the same you have today in many languages, notably Python's ``print`` function
+or Javascript's ``console.log`` (some offer also interpolation, but it's not possible
+in C++). C++ simply offered the same thing, although due to the limitations of the
+first C++ standard and the lack of variadic functions (provided only in C++11),
+they had to use the operator overloading:
 
 .. code:: c++
 
    cout << "origin=" << left << "," << bottom << " dimensions="
         << (right-left) << " x " << (top-bottom);
 
+2. The use of language-provided manipulator names, even if need more effort to write,
+are clearer to people who are maintaining the code.
 
-The C's ``printf`` function was simply a halfway between an idea to provide this
-facility through a function (which was good) and C language's limitations. Beside
-that it only provides disadvantages, even though so many people learned to live
-with them so hard that now they think this is useful and beautiful. And the problem
-isn't just in the fact that types are not automatically recognized and you need to
-use the right type tag for the value (which is the problem solved by {fmt} already).
-The problem is in the formatting string itself, and the resulting fact of mixing up
-the order of things that should appear in the resulting text.
+The only reason why ``printf`` was created was to fit in the C language limitations.
+And the problem isn't in the need of explicit type specification in the format
+string, but the format string itself. It can be argued, of course, that the format
+string makes things clear as posing a formatting scheme, but this is true only if
+you use named tags, with having still the format specification close to the value
+being formatted.
 
 So my first approach was to expand on the original C++ standard's idea, just solve
 somehow the problem with state-based formatting settings. The solution was actually
@@ -152,25 +113,76 @@ that they expose the settings structure and provide the direct access to the wri
 function, but they didn't seem interested. So I decided to use it on my own.
 
 
+Motivation: why forking {fmt}
+=============================
+
+I'd like to simply explain, why I have used this library as a base for providing
+something that looks otherwise completely unrelated: a value-collecting formatter
+that almost completely discards the idea of a string-based formatter. Why haven't I
+written it just anew, but forked the {fmt} library instead? There are several reasons:
+
+1. The {fmt} library, beside the API using the string-based formatter, provides
+   also important internal facilities for formatting, mainly based on the formatter
+   structure.
+2. There are also several other facilities worth reusing, like the formatting
+   specification provided using direct string characters, just for a single value.
+3. The {fmt} library has proven to be of high performance, beating the standard
+   C++ iostream library by an order of magnitude.
+4. And, last but not least, the library is distributed with a very liberal license,
+   with only a requirement to leave the LICENSE file intact.
+
+My initial idea was to just make a derivative work for {fmt}, with the hope to be
+able to do the same with the C++20 standard library, but this required to have a
+direct access to the structure known as ``format_specs``, as well as a direct
+access to a function that performs the formatting using the specs. That's not only
+not a part of the public API of {fmt} (and despite my request, people from the {fmt}
+library team were not interested in exposing it), but additionally in the C++20
+standard library version they use some mangled names, so even if publicly accessible,
+such a library wouldn't be portable, even across multiple versions of the same
+compiler.
+
+So finally I resolved to forking the {fmt} library, even if this means that I would
+still have to follow upgrades of {fmt} and the code can't be shared with C++20 standard
+library.
+
+This has actually proven to be moreover the better idea because both format string
+and named tags are available and you can freely mix together all these facilities and
+find they way that fits you best. For example, if you agree with me that the named
+tags are the only useful in the format string, then this:
+
+.. code:: c++
+
+fmt::print("Hello, {name}! The answer is {number:04}. Goodbye, {name}.",
+           fmt::arg("name", "World"), fmt::arg("number", 42));
+
+can be also able to be written as:
+
+.. code:: c++
+
+fmt::print("Hello, {name}! The answer is {number}. Goodbye, {name}.",
+           fmt::arg("name", "World"),
+           fmt::arg("number", fmt::ffmt(42, "04")));
+
+
 Value collector functions
 =========================
 
 There are several functions that collect multiple values to glue them
 together, using different destinations:
 
-* ``ffprint``: formats the values and prints them on the stream (``std::ostream`` or ``FILE*``).
+* ``ffprint``: formats the values and prints them on the Stream (``std::ostream`` or ``FILE*``).
 
 .. code:: c++
 
     void fmt::ffprint(Stream sout, T&&... args);
 
-* ``ffwrite``: formats the values and prints them on the character container
+* ``ffwrite``: formats the values and writes the formatted text into the character container.
 
 .. code:: c++
 
    void fmt::ffwrite(Container c, T&&... args);
 
-* ``ffcat``: format the values into a string and return it
+* ``ffcat``: format the values into a string and return it (use ``wffcat`` for ``std::wstring``)
 
 .. code:: c++
 
@@ -214,7 +226,7 @@ See below for the information about tags.
 Note that in ostream interface for this library there was added the
 ``operator<<`` version for ``fmt::basic_memory_buffer``. Therefore you can also
 use ``ffmt`` function together with ostream directly. Here is the above
-example:
+example rewritten:
 
 .. code:: c++
 
@@ -263,8 +275,8 @@ aliases with similar names.
 CONSIDERED is adding a special facility to allow a user create their own
 boolean value interpreters with provided some predefined values. Actually the
 simplest way for an application is to create an array such as ``const char*
-yesno[2] = {"no", "yes"};`` and then you can simply use ``yesno[val]`` to make
-``val`` printed as boolalpha.
+truefalse[2] = {"false", "true"};`` and then you can simply use
+``truefalse[val]`` to make ``val`` printed as boolalpha.
 
 4. Note also that formatting is adjusted to the features of the {fmt} library,
 which are sometimes different to the one from the standard C++ library. For
@@ -310,8 +322,8 @@ Alternative form tags:
 * showpoint
 * falt
 
-Actually all tags set exactly the same boolean setting to true, which by
-default is false, and there exist also their counterparts with ``no``
+Actually all these tags set exactly the same boolean setting to true, which 
+is false by default, and there exist also their counterparts with ``no``
 prefix, which simply do nothing. This flag changes things depending on
 the value type:
 
@@ -331,8 +343,8 @@ Defines what character should be used to fill the padding in case when
 it is present. The default is space. The ``fillzero`` defines the "0"
 be used (a dedicated tag is provided because this has its dedicated
 marker in the string formatting, as well as it's a known practice to use
-leading zeros in case of numbers formatted to the equal width. The
-parametrized ``fill`` tag allows to use any kind of filling. The
+leading zeros in case of numbers formatted to the equal width). The
+parametrized ``fill`` tag allows to use any string for filling. The
 parameter uses the string view type.
 
 Numeric base tags:
@@ -362,12 +374,15 @@ using the letter ``e``, otherwise known as ``scientific`` (the alias provided
 for convenience as a name used in iostream, but some may prefer ``fexp`` as
 shorter and more straightforward). The ``general`` formats the value as either
 scientific or fixed, with the latter used only if the value can be still
-represented with given precision, otherwise scientific. Versions with ``u``
-prefix use uppercase ``E`` letter for exponent and for ``NAN`` or ``INF``
-string.
+printed with all fraction parts with given precision, otherwise scientific.
+Versions with ``u`` prefix use uppercase ``E`` letter for exponent and for
+``NAN`` or ``INF`` strings.
 
 The ``fhex`` tag requests the floating-point hexadecimal representation.
-Note that it is not interchangeable with ``hex``.
+Note that it is not interchangeable with ``hex``. In this very case the
+``f`` specifically designates floating-point, while in the others (``fexp``,
+``falt`` and ``fdebug``), it's only to avoid at least visual name conflicts
+with too simple names.
 
 The ``precision`` tag is parametrized and defines the number of significant
 digits after the decimal point.
