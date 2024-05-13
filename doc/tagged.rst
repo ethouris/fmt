@@ -9,7 +9,7 @@ The use of tagged API is based on some simple rules:
 1. Use one of the functions that take multiple arguments, which will be
    formatted and glued together one by one.
 2. If the value is any string-like type, it is copied as is to the output.
-3. Values of any other types are passed through the `fmt::ffmt` function,
+3. Values of any other types are passed through the ``fmt::ffmt`` function,
    which will return ``fmt::basic_memory_buffer``.
 4. You can also use ``fmt::ffmt`` function explicitly, if you want to
    use any non-default format settings for that value.
@@ -179,7 +179,7 @@ Alignment tags:
 * center
 * width(N)
 
-When there's a padding required (the , value is aligned right or left. For center
+When there's a padding required, the value is aligned right or left. For center
 the same padding is added in half on both right and left. This corresponds
 to the {fmt} format markers ``<``, ``>`` and ``^``. The ``width`` tag is
 parametrized and provides the number of characters that the value should take
