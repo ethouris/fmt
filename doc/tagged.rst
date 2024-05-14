@@ -47,16 +47,18 @@ Or ``fmt::ffmt(size, "06")``, if you prefer that way.
 Value collector functions
 =========================
 
-These functions format the values given as variadic arguments, format
-them, glue them together, and write into the destination:
+These functions format the values given as variadic arguments, glue the
+formatted strings together, and write into the destination:
 
-* ``ffprint``: writes the result to the Stream (``std::ostream`` or ``FILE*``).
+* ``ffprint``: writes the result to the Stream. For ``std::ostream`` it uses the ``write``
+method and for ``FILE*`` - ``fwrite``.
 
 .. code:: c++
 
     void fmt::ffprint(Stream sout, T&&... args);
 
-* ``ffwrite``: writes the result into the character container.
+* ``ffwrite``: writes the result into the character container. It uses ``std::back_inserter``
+adapter to modify the container.
 
 .. code:: c++
 
@@ -111,14 +113,13 @@ an alias to ``unsigned char``, and as such it's printed as a character by defaul
 
 Note that in ostream interface for this library there is also added the
 ``operator<<`` version for ``fmt::basic_memory_buffer``. Therefore you can also
-use ``ffmt`` function together with ostream directly. Here is the above
-example rewritten:
+use ``ffmt`` function together with ostream directly, for example:
 
 .. code:: c++
 
-   cout << "origin=" << fmt::ffmt(left, fmt::left, fmt::width(20))
-        << "," << fmt::ffmt(bottom, fmt::right, fmt::width(20)) << " dimensions="
-        << (right-left) << " x " << (top-bottom);
+   cout << "origin=" << fmt::ffmt(p.left, fmt::left, fmt::width(20))
+        << "," << fmt::ffmt(p.bottom, fmt::right, fmt::width(20)) << " dimensions="
+        << (p.right-p.left) << " x " << (p.top-p.bottom);
 
 
 Formatting tags
@@ -148,37 +149,27 @@ can be also written as:
 The named tags are designed to be very similar to the iostream's manipulators,
 but there are important differences:
 
-1. There's no ``uppercase`` tag. Instead there are tags with uppercase
-variants, where case may matter, and they have just simply added ``u``
-in front.
+1. There's no ``uppercase`` tag. If a particular formatting style uses letters,
+the tag that applies it has a variant prefixed with ``u``, e.g. ``uhex``.
 
-2. It was chosen that tags applying specific setting value (not just boolean
-presence) do not use the ``set`` prefix (so there are ``width`` and ``precision``
-tags, not ``setw`` and ``setprecision``). NOTE THAT IT IS CONSIDERED to add
-aliases with similar names.
+2. Parametrized tags for width and precision don't have the ``set`` prefix
+like their iostream counterparts ``setw`` and ``setprecision``. NOTE THAT IT
+IS CONSIDERED to add aliases with similar names.
 
-3. There's no formatter tag for a boolean value (such as ``std::boolalpha``).
-CONSIDERED is adding a special facility to allow a user create their own
-boolean value interpreters with provided some predefined values. Actually the
-simplest way for an application is to create an array such as ``const char*
-truefalse[2] = {"false", "true"};`` and then you can simply use
-``truefalse[val]`` to make ``val`` printed as boolalpha.
+3. No special tag for ``bool`` type, like ``std::boolalpha``. It still
+considered some user friendly method to provide this, but actually it's
+easy to do it yourself using an array of two values.
 
-4. Note also that formatting is adjusted to the features of the {fmt} library,
-which are sometimes different to the one from the standard C++ library. For
-example, in {fmt} there's no formatting known as ``std::internal``, as well
-as the width specification is the exact, not minimum width.
+4. Note that formatting rules differ a bit between {fmt} and iostream,
+so some tags may not exist (like ``std::internal``) or work differently.
 
-By using the tags, you should take care that tags you are using make sense
-and are consistent. Some of the tags may mean different things, but will
-result in setting the same config entry, or the setting is interpreted
-differently depending on the value type. Also next tags may override the
-setting of the previous one. This includes also tag combinations using a
-string-specified tags and named tags.
-
-The following tags are provided:
+Note that currently the tags are not checked if they make sense or do not
+form a conflicting combination (if both tags change the same setting, just
+the last one is effective). Some invalid combinations may result in
+getting an exception in {fmt}.
 
 Alignment tags:
+---------------
 
 * right (default)
 * left
@@ -192,6 +183,7 @@ parametrized and provides the number of characters that the value should take
 (if the value is shorter, it uses padding with a fill character).
 
 Sign tags:
+----------
 
 * showneg (default)
 * showpos
@@ -203,6 +195,7 @@ are not prefixed. With ``showpos`` it is prefixed by a plus sign and with
 ``showspace`` with a space.
 
 Alternative form tags:
+----------------------
 
 * showbase
 * showpoint
@@ -220,6 +213,7 @@ binary and ``0`` for oct.
 in case of fixed formatting, even if the fraction part is zero.
 
 Filling tags:
+-------------
 
 * fillspace (default)
 * fillzero
@@ -234,6 +228,7 @@ parametrized ``fill`` tag allows to use any string for filling. The
 parameter uses the string view type.
 
 Numeric base tags:
+------------------
 
 * dec (default)
 * hex, uhex
@@ -247,6 +242,7 @@ prefix, if combined with ``showbase``. For binary, only the latter
 applies.
 
 Floating-point tags:
+--------------------
 
 * fixed
 * scientific/fexp, uscientific/ufexp
@@ -274,6 +270,7 @@ The ``precision`` tag is parametrized and defines the number of significant
 digits after the decimal point.
 
 Special tags:
+-------------
 
 * fdebug
 
