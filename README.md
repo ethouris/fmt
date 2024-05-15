@@ -32,9 +32,11 @@ Try {fmt} in [Compiler Explorer](https://godbolt.org/z/8Mx1EW73v).
   [C++23 std::print](https://en.cppreference.com/w/cpp/io/print)
 - [Format string syntax](https://fmt.dev/latest/syntax.html) similar
   to Python\'s
-  [format](https://docs.python.org/3/library/stdtypes.html#str.format)
+  [str.format](https://docs.python.org/3/library/stdtypes.html#str.format)
 - [Tagged formatting support](doc/tagged.rst) that provides
-  formatting tags similar to iostream manipulators
+  formatting tags similar to iostream manipulators for a similar use
+  to Python\'s [format](https://docs.python.org/2/library/functions.html#format)
+  and [print](https://docs.python.org/2/library/functions.html#print) functions.
 - Fast IEEE 754 floating-point formatter with correct rounding,
   shortness and round-trip guarantees using the
   [Dragonbox](https://github.com/jk-jeon/dragonbox) algorithm
