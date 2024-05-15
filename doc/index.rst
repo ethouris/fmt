@@ -92,7 +92,7 @@ Tagged format API
 This API consists of two main elements:
 
 1. Variadic functions that glue together the formatted versions of all
-subsequent arguments.
+   subsequent arguments.
 2. Named tags, similar to iostream manipulators, for formatting the value.
 
 For example:
