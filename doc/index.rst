@@ -4,6 +4,11 @@ Overview
 **{fmt}** is an open-source formatting library providing a fast and safe
 alternative to C stdio and C++ iostreams.
 
+This version is a forked version of **{fmt}**, which provides additionally
+the formatter tags and facilities for sequenced formatting in order to have
+an almost perfect drop-in replacement for iostreams and any printing and logging
+solutions based on iostreams - `see below <#tagged>`_.
+
 .. raw:: html
 
    <div class="panel panel-default">
@@ -16,12 +21,6 @@ alternative to C stdio and C++ iostreams.
      </div>
    </div>
 
-.. _tagged-info:
-
-This version is a forked version of **{fmt}**, which provides additionally
-the formatter tags and facilities for sequenced formatting in order to have
-an almost perfect drop-in replacement for iostreams and any printing and logging
-solutions based on iostreams - `see below <#tagged>`_.
 
 .. _format-api-intro:
 
