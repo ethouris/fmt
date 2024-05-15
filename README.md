@@ -101,6 +101,15 @@ std::string s = fmt::format("I'd rather be {1} than {0}.", "right", "happy");
 // s == "I'd rather be happy than right."
 ```
 
+**Format values one after another**
+
+``` c++
+struct {std::string name; int age, serial; } user {"John", 30, 31337};
+std::string s = fmt::ffcat("Name: ", user.name, " age:", user.age, " serial: ",
+                            fmt::ffmt(user.serial, fillzero, width(8));
+// s == "Name: John age: 30 serial: 00031337
+```
+
 **Print dates and times** ([run](https://godbolt.org/z/c31ExdY3W))
 
 ``` c++
