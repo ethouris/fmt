@@ -89,62 +89,29 @@ an alternative, slightly terser syntax for named arguments:
 Tagged format API
 -----------------
 
-This feature is aimed at a nearly drop-in replacement of the iostream format API.
-Two most important part of this feature are:
+This API consists of two main elements:
 
-1. Provide the named tags, similar to iostream manipulators, for formatting the value.
-2. Provide variadic functions that will format all arguments one after another and
-   glue them together - the same thing that the ``ostream::operator<<`` does, just in the
-   style of a function call.
+1. Variadic functions that glue together the formatted versions of all
+subsequent arguments.
+2. Named tags, similar to iostream manipulators, for formatting the value.
 
-One of the reasons of providing ``operator<<`` for ostream was the lack of variadic
-functions in the first C++ standard. Fortunately since C++11 the variadic functions
-can be defined, so the following expression:
+For example:
 
 .. code:: c++
 
-   cout << "I'd rather be " << pri[0] << " than " << pri[1] << "\n";
+   ffprint(cout, "Name: ", name, " age: ", age, " serial: ",
+                 ffmt(serial, width(10, fillzero)), " status: ", st, "\n");
 
-can be also written as:
+A similar API is provided by Python:
 
-.. code:: c++
+.. code:: python
 
-   ffprint(cout, "I'd rather be ", pri[0], " than ", pri[1], "\n");
+   print('Name: ', name, " age:", age, " serial: ",
+          format(serial, '010'), " status: ", st)
 
-By weird reasons, however, it was chosen that ostream will use the formatting
-settings as a state. In result, if you want to print the value of RGBA, you
-can do simply:
-
-.. code:: c++
-
-   cout << hex << setfill('0') << setw(2) << r << g << b << a;
-
-just the problem is that if you try to put ``<< " " <<`` between the values,
-this will result in printing zero followed by a space. This problem doesn't
-have a simple solution - either you reset the stream flags after printing
-each value (before C++98 there was an idea that these manipulators only change
-settings for the next value and get reset after this one is printed) or just
-resolve to ``sprintf(buf, "%02 x%02 x%02 x%02x", r, g, b, a)``.
-
-The tagged format API provides the same thing, while not using the state to
-keep the formatting settings - all formatting settings are assigned to the
-individual value. So you can still use tagged formatters:
-
-.. code:: c++
-
-   ffprint(cout, ffmt(r, hex, fillzero, width(2)), " ",
-				 ffmt(g, hex, fillzero, width(2)), " ",
-				 ffmt(b, hex, fillzero, width(2)), " ",
-				 ffmt(a, hex, fillzero, width(2)));
-
-and also the string formatters:
-
-.. code:: c++
-
-   ffprint(cout, ffmt(r, "02x"), " ",
-				 ffmt(g, "02x"), " ",
-				 ffmt(b, "02x"), " ",
-				 ffmt(a, "02x"));
+This, in general, follows the manner of the Iostream's ``operator<<``, while
+through the use of ``ffmt`` call it solves the problem of using format settings
+through the stream state. This function can be used with iostream directly, too.
 
 The above examples using the string-based format can be then rewritten as:
 
@@ -165,7 +132,6 @@ The above examples using the string-based format can be then rewritten as:
   fmt::ffprint(stderr, "System error code = ", errno, "\n");
 
 See `Tagged formatting documentation <tagged.rst>`_ for more information.
-
 
 .. _safety:
 
