@@ -319,18 +319,18 @@ only if you use named tags, as this partially emulates the interpolated string. 
 format string with positioned arguments is inferior to any other solution as it comes
 to code's clarity and maintenance.
 
-The C++ iostream has one major design flaw: it usees format settings as a state.
+The C++ iostream has one major design flaw though: it uses format settings as a state.
 This means that when you send the ``std::hex`` manipulator to the stream, all integer
 values are since then printed in hex, unless you change them back to dec. If you
 write a software that produces some results in a text form, this is awkward. For
-example, if you want to format multiple values the same non-default way, you can
-use:
+example, if you want to format multiple values in two-cipher hex (so non-default way),
+you use:
 
 .. code:: c++
 
    cout << hex << setfill('0') << setw(2) << r << g << b << a;
 
-but then you try to insert spaces between these values:
+but then if you try to insert spaces between these values:
 
 .. code:: c++
 
@@ -340,7 +340,7 @@ but then you try to insert spaces between these values:
        << b << " "
        << a;
 
-and surprisinly find out that there are weird extra ``0`` following the
+you surprisinly find out that there are weird extra ``0`` following the
 first three values. This is because the width of 2 and filling with ``'0'``
 applies to ``" "`` as well, so it has prefixed this with zero. Not many
 people had patience to solve this problem this way:
@@ -358,10 +358,9 @@ similarly ``scan`` for istream). This extension has been removed in version
 7.5.0 because likely people could as well use ``printf`` having sync with
 stdio.
 
-So my first approach was to expand on the original C++ standard's idea, just
-solve somehow the problem with state-based formatting settings. The solution
-was actually quite simple - `provide the wrapper function for nondefault formatting
-<https://gist.github.com/ethouris/2b431e1086c2197f516e609b1b4bf023>`_:
+But I have found a better solution for this: you need to find a way to mark
+any non-default formatting using a special function call, which should
+"nest" the format settings only to this value, without affecting the others:
 
 .. code:: c++
 
@@ -374,15 +373,23 @@ was actually quite simple - `provide the wrapper function for nondefault formatt
            fmt(b, hex, setfill('0'), setw(2)) << " "
            fmt(a, hex, setfill('0'), setw(2)) << "\n";
 
-In the above snippet you can also find a "Print" function, which turns the
-above into a function call (that's actually the original idea for ``ffprint``).
+This has fixed the problem of conveying settings through the stream state.
+With this fix, there's the third advantage of the subsequent argument
+formatting over the string-based format: you specify the formatting settings
+directly at the value being printed, without distributing all things concerning
+formatting a single value between the format string and arguments.
+
+This solution is currently `available here
+<https://gist.github.com/ethouris/2b431e1086c2197f516e609b1b4bf023>`_,
+together with a ``Print`` function as a wrapper for ``operator<<`` being
+a prototype for ``fmt::ffprint``.
 
 This solution has however one small problem: the performance is even poorer than
 when using plain iostream (what this ``fmt`` call actually does is to save the
 ios flags, apply changes through manipulators, send the value to the stream,
-and then restore the original flags). This could be done alternatively
-by having ``fmt`` function use ``std::ostringstream``, format the value, and
-return the result as ``std::string``. That could perform even worse.
+and then restore the original flags). This could have been done alternatively
+by making the ``fmt`` call use ``std::ostringstream`` for formatting and
+returning ``std::string``, but this wouldn't make the preformance any better.
 
 So, in order to take advantage of the {fmt}'s performance, as well as its formatting
 facilities, while implementing this above idea, the best way was to add this to the
@@ -392,14 +399,14 @@ facilities, while implementing this above idea, the best way was to add this to 
 Motivation: why forking {fmt}
 =============================
 
-It can be argued, why fork {fmt}, while the solution I'm trying to provide seems
-almost completely unrelated: a value-collecting formatter that almost completely
-discards the idea of a string-based formatter. Why haven't I written it just anew,
-but forked the {fmt} library instead? There are several reasons:
+The solution for value-collecting formatter that is being provided here seems to be
+completely unrelated to the string-based formatting functions, so why fork {fmt}?
+There are several reasons:
 
-1. The {fmt} library provides already a complete facility for formatting. All I
-   needed to make it work is to modify the format specs structure and call a
-   function that will do the formatting, with that structure.
+1. The {fmt} library provides already a complete facility for formatting: not just
+   interpretation of the format string, but also design of the format specs structure
+   and functions that perform the formatting basing on these settings. All I needed
+   was to reuse this structure and apply changes of this value using format tags.
 2. Translation of a string with specs syntax into the format specs structure was
    also worth reusing by providing the possibility to define format tags this way.
 3. The {fmt} library has been proven to be of high performance, beating the standard
