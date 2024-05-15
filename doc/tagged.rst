@@ -384,15 +384,20 @@ tags are the only useful feature of the format string, then this:
 
 .. code:: c++
 
-fmt::print("Hello, {name}! The answer is {number:04}. Goodbye, {name}.",
+    fmt::print("Hello, {name}! The answer is {number:04}. Goodbye, {name}.",
            fmt::arg("name", "World"), fmt::arg("number", 42));
 
 can be also able to be written as:
 
 .. code:: c++
 
-fmt::print("Hello, {name}! The answer is {number}. Goodbye, {name}.",
+    fmt::print("Hello, {name}! The answer is {number}. Goodbye, {name}.",
            fmt::arg("name", "World"),
            fmt::arg("number", fmt::ffmt(42, "04")));
 
+Effectively then, having both string-formatted and language-tagged solution in
+one library is the best approach to offer the users full choice of the style of
+formatting. That's also how Python libraries do it, although it may
+`raise weird questions from some
+<https://stackoverflow.com/questions/16683518/why-does-python-have-a-format-function-as-well-as-a-format-method>`.
 
