@@ -99,17 +99,15 @@ For example:
 
 .. code:: c++
 
-   ffprint(cout, "Name: ", name, " age: ", age, " serial: ",
-                 ffmt(serial, width(10, fillzero)), " status: ", st, "\n");
+   ffprint(cout, "Name: ", name, " age: ", age, " serial: ", ffmt(serial, width(10), fillzero), " status: ", st, "\n");
 
-A similar API is provided by Python:
+A similar API is available in Python:
 
 .. code:: python
 
-   print('Name: ', name, " age:", age, " serial: ",
-          format(serial, '010'), " status: ", st)
+   print('Name: ', name, " age:", age, " serial: ", format(serial, '010'), " status: ", st)
 
-This, in general, follows the manner of the Iostream's ``operator<<``, while
+This, in general, follows the manner of the ``ostream::operator<<``, while
 through the use of ``ffmt`` call it solves the problem of using format settings
 through the stream state. This function can be used with iostream directly, too.
 
