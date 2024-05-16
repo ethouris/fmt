@@ -347,9 +347,9 @@ people had patience to solve this problem this way:
 
 .. code:: c++
 
-cout << hex << setfill('0') << setw(2) << r
-     << setw(0) << " "
-     << setw(2) << g ...
+   cout << hex << setfill('0') << setw(2) << r
+        << setw(0) << " "
+        << setw(2) << g ...
 
 so this has forced many to get back to ``sprintf``. Moreover, the early
 versions of the GCC compiler were provided with a nonstandard extension
