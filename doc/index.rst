@@ -86,8 +86,8 @@ an alternative, slightly terser syntax for named arguments:
 
 .. _tagged:
 
-Tagged format API
------------------
+Tagged on-demand format API
+---------------------------
 
 This API consists of two main elements:
 
@@ -130,6 +130,37 @@ The above examples using the string-based format can be then rewritten as:
   fmt::ffprint(stderr, "System error code = ", errno, "\n");
 
 See `Tagged formatting documentation <tagged.rst>`_ for more information.
+
+
+.. _lightweight:
+
+Lightweight compat on-demand format API
+=======================================
+
+If you have a project that requires to be C++03-compatible (even as partial),
+this version can be interesting for you. It doesn't use any of the {fmt}
+library facilities and it's a header-only C++03 library that provides thin
+wrappers around ``FILE*`` and the ``sfmt`` function. Formatting is done
+through the ``snprintf`` function.
+
+.. code:: c++
+
+    fmt::ostdiostream sout(stdout);
+
+    sout << "I'd rather be " << pri[0] << " than " << pri[1] << "\n";
+
+    sout << sfmt(r, "02x") << " " <<
+            sfmt(g, "02x") << " " <<
+            sfmt(b, "02x") << " " <<
+            sfmt(a, "02x") << fmt::seol;
+
+There are currently two special tags supported: ``seol`` that contains
+sending the EOL character to the stream (something like ``std::endl``)
+and ``sflush``, which calls ``std::fflush`` on the wrapped file stream.
+
+This is a separate project for the rest of {fmt} and is provided only
+for convenience.
+
 
 .. _safety:
 

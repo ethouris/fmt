@@ -12,7 +12,8 @@
 alternative to C stdio and C++ iostreams.
 
 This version is a fork of the original {fmt} library with addition of the
-formatter tags, similar to iostream manipulators.
+formatter tags, similar to iostream manipulators, together with the
+on-demand formatting API.
 
 [Documentation](doc/index.rst)
 
@@ -37,6 +38,9 @@ Try {fmt} in [Compiler Explorer](https://godbolt.org/z/8Mx1EW73v).
   formatting tags similar to iostream manipulators for a similar use
   to Python\'s [format](https://docs.python.org/2/library/functions.html#format)
   and [print](https://docs.python.org/2/library/functions.html#print) functions.
+- [Lightweight compat version of on-demand formatting](doc/sfmt.rst)
+  which provides a similar solution as ostream and on-demand formatting
+  API based on snprintf
 - Fast IEEE 754 floating-point formatter with correct rounding,
   shortness and round-trip guarantees using the
   [Dragonbox](https://github.com/jk-jeon/dragonbox) algorithm
