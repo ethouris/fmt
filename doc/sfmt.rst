@@ -37,8 +37,12 @@ The syntax for ``format`` parameter is the following:
    value, if the formatting string contained any wrong characters.
 4. Wrong characters depend on the type. For example, you can't use
    precision for strings, ``x`` for ``double`` or ``u`` for ``int``.
-   As a special exception, ``x`` and ``o`` are allowed for ``int``,
+   As a special exception, ``x/X`` and ``o`` are allowed for ``int``,
    despite that the value will be actually displayed as unsigned.
+5. All parts of the format specification are optional. For example,
+   if you don't supply the format flavor (``e/f/g`` for ``double``
+   or ``d/o/x`` for ``int``), the default one will be used: ``g``
+   for ``double``, ``i`` for int, ``u`` for unsigned etc.
 
 Note also that all rules for formatting are determined by the syntax
 used by the ``printf`` function family and differ to those used by
