@@ -40,9 +40,12 @@ The syntax for ``format`` parameter is the following:
    As a special exception, ``x`` and ``o`` are allowed for ``int``,
    despite that the value will be actually displayed as unsigned.
 
+Note also that all rules for formatting are determined by the syntax
+used by the ``printf`` function family and differ to those used by
+the {fmt} library.
    
-Iostream-style FILE wrapper
-===========================
+Iostream-style FILE wrappers
+============================
 
 To allow the use of these functions, there is provided also the
 wrapper for ``FILE*`` using ``operator<<`` for sending data to it.
@@ -59,13 +62,21 @@ available.
    template<class Value>
    ostdiostream& ostdiostream::operator<<(const Value& val);
 
-Versions of ``operator<<`` for ``const char*``, ``std::string``
-and ``internal::form_memory_buffer`` print contained characters
-in original form. For all other values there's ``sfmt`` call
-done internally with no format specification.
+Versions of ``operator<<`` for ``const char*``, ``std::string`` and
+``fmt::internal::form_memory_buffer`` print contained characters in the
+original form. For all other values there's ``sfmt`` call done internally
+with no format specification. To use any other formatting, you can call
+the ``sfmt`` function explicitly:
 
-Additionally for writing to files that have to be opened and
-closed by the user, there's a convenience wrapper:
+.. code:: c++
+
+   ostdiostream sout(stdout);
+
+   sout << "The value is " << sfmt(val, "e")
+        << " (around " << sfmt(val, ".08f") << ")\n";
+
+Additionally for writing to files that have to be opened and closed by
+the user, there's a convenience wrapper:
 
 .. code:: c++
 
@@ -76,16 +87,14 @@ closed by the user, there's a convenience wrapper:
     void ostdiofstream::open(const std::string& filename, const std::string& mode);
     bool ostdiofstream::good(); // returns false if internal FILE* is NULL
     void ostdiofstream::attach(FILE* existing_file);
+    FILE* ostdiofstream::detach();   // Sets internal FILE* to NULL, returns previous value
     int ostdiofstream::close();      // Calls ``fclose`` and returns its result
-    FILE* ostdiofstream::detach();   // Sets internal FILE* to NULL
     ostdiofstream::~ostdiofstream(); // Closes the file
 
 The default constructor constructs a NULL-initialized file, which shall not be
-used. The ``open`` and the constructor with filename and mode simply forwards
-to ``std::fopen`` and doesn't check the result; you should do it yourself by
-calling ``good()``. If you use some other function to open a file than ``fopen``
-to create the ``FILE*`` stream (and it should still be closed by ``fclose``),
-you can also use ``attach()``. The use of ``detach`` can prevent the file from
-being closed in this class's destructor.
-
-
+used. The ``open`` method and the constructor with filename and mode simply forward
+to ``std::fopen`` and don't check the result; you should do it yourself by
+calling ``good()`` afterwards. If you use some other function to open a file
+than ``fopen`` to create the ``FILE*`` stream (and it should still be closed
+by ``fclose``), you can also use ``attach()``. The use of ``detach`` can prevent
+the file from being closed in this class's destructor.
