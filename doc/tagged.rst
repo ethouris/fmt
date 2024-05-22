@@ -328,9 +328,10 @@ you use:
 
 .. code:: c++
 
+   r = 0x10; g = 0x20; b = 0x30; a = 0xFF
    cout << hex << setfill('0') << setw(2) << r << g << b << a;
 
-but then if you try to insert spaces between these values:
+and you get "102030FF". But then if you try to insert spaces between these values:
 
 .. code:: c++
 
@@ -340,10 +341,10 @@ but then if you try to insert spaces between these values:
        << b << " "
        << a;
 
-you surprisinly find out that there are weird extra ``0`` following the
-first three values. This is because the width of 2 and filling with ``'0'``
-applies to ``" "`` as well, so it has prefixed this with zero. Not many
-people had patience to solve this problem this way:
+you surprisingly get "100 200 300 FF". What is that extra ``0``? It's
+because the width of 2 and filling with ``'0'`` applies to ``" "`` as well,
+so it has prefixed this with zero. Not many people had patience to solve
+this problem this way:
 
 .. code:: c++
 
@@ -351,14 +352,19 @@ people had patience to solve this problem this way:
         << setw(0) << " "
         << setw(2) << g ...
 
-so this has forced many to get back to ``sprintf``. Moreover, the early
-versions of the GCC compiler were provided with a nonstandard extension
-of the ``form`` method, which took the same arguments as ``printf`` (and
-similarly ``scan`` for istream). This extension has been removed in version
-7.5.0 because likely people could as well use ``printf`` having sync with
-stdio.
+so this has forced many to get back to ``sprintf``. Even earlier versions
+of GCC have provided an extension, the ``ostream::form`` method that did
+the same as printf formatting (removed in 7.5.0 version).
 
-But I have found a better solution for this: you need to find a way to mark
+But I remember there was a method to specify width and precision in Pascal:
+
+.. code:: pascal
+
+   writeln('The value is ', val, ' (around ', val:0:8, ')');
+
+and stated that something similar can be provided here. Of course Pascal had
+it done through some language support, while in C++ it should be possible to
+provide a similar thing librarywise: you need to find a way to mark
 any non-default formatting using a special function call, which should
 "nest" the format settings only to this value, without affecting the others:
 
