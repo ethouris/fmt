@@ -57,6 +57,7 @@ public:
     size_t first_size() const { return initial; }
     const slices_t& get_slices() const { return slices; }
     size_t size() const { return total; }
+    bool empty() const { return total == 0; }
 
     void append(char c)
     {
@@ -191,8 +192,6 @@ public:
     }
 };
 
-typedef form_memory_buffer<> stdio_memory_buffer;
-
 template<size_t N, size_t I>
 struct CheckChar
 {
@@ -210,7 +209,6 @@ struct CheckChar<N, N>
     static bool is(char c, const char (&series)[N]) { return false; }
 };
 
-namespace internal {
 template<size_t N> inline
 bool isanyof(char c, const char (&series)[N])
 {
@@ -292,7 +290,6 @@ form_memory_buffer<> fix_format(const char* fmt,
     return buf;
 }
 
-}
 
 template <class Val>
 struct Formatter
@@ -352,6 +349,9 @@ SFMT_FORMAT_FIXER_TPL(class Type, Type*, "", "p", "p", "<!!!>");
 #undef SFMT_FORMAT_FIXER_TPL
 #undef SFMT_FORMAT_FIXER
 
+template<class Value, class Stream> inline
+void write_default(Stream& str, const Value& val);
+
 }
 
 class ostdiostream
@@ -396,16 +396,21 @@ public:
     }
 
     template<class Value>
-    ostdiostream& operator<<(const Value& v);
+    ostdiostream& operator<<(const Value& v)
+    {
+        internal::write_default(*this, v);
+        return *this;
+    }
 };
 
-class ostdiofstream: public ostdiostream
+
+class ofilestream: public ostdiostream
 {
 public:
 
-    ostdiofstream(): ostdiostream(0) {}
+    ofilestream(): ostdiostream(0) {}
 
-    ostdiofstream(const std::string& name, const std::string& mode = "")
+    ofilestream(const std::string& name, const std::string& mode = "")
         : ostdiostream(0) // Set NULL initially, but then override
     {
         open(name, mode);
@@ -446,10 +451,97 @@ public:
         return retval;
     }
 
-    ~ostdiofstream()
+    ~ofilestream()
     {
         if (in)
             std::fclose(in);
+    }
+};
+
+class obufstream
+{
+protected:
+    internal::form_memory_buffer<> buffer;
+
+public:
+
+    obufstream() {}
+
+    obufstream& operator<<(const char* t)
+    {
+        size_t len = strlen(t);
+        buffer.append(t, len);
+        return *this;
+    }
+
+    obufstream& operator<<(const std::string& s)
+    {
+        buffer.append(s.data(), s.size());
+        return *this;
+    }
+
+    template<size_t ANYSIZE>
+    obufstream& operator<<(const internal::form_memory_buffer<ANYSIZE>& b)
+    {
+        using namespace internal;
+        // Copy all pieces one by one
+        if (b.size() == 0)
+            return *this;
+
+        buffer.append(b.get_first(), b.first_size());
+        for (form_memory_buffer<>::slices_t::const_iterator i = b.get_slices().begin();
+                i != b.get_slices().end(); ++i)
+        {
+            // Would be tempting to move the blocks, but C++03 doesn't feature moving.
+            const char* data = &(*i)[0];
+            buffer.append(data, i->size());
+        }
+        return *this;
+    }
+
+    template<class Value>
+    obufstream& operator<<(const Value& v)
+    {
+        internal::write_default(*this, v);
+        return *this;
+    }
+
+    std::string str() const
+    {
+        using namespace internal;
+        std::string out;
+        if (buffer.empty())
+            return out;
+
+        out.reserve(buffer.size() + 1);
+        out.append(buffer.get_first(), buffer.first_size());
+        for (form_memory_buffer<>::slices_t::const_iterator i = buffer.get_slices().begin();
+                i != buffer.get_slices().end(); ++i)
+        {
+            // Would be tempting to move the blocks, but C++03 doesn't feature moving.
+            const char* data = &(*i)[0];
+            out.append(data, i->size());
+        }
+        return out;
+    }
+
+    size_t size() const { return buffer.size(); }
+
+    template <class OutputContainer>
+    void copy_to(OutputContainer& out) const
+    {
+        using namespace internal;
+
+        std::copy(buffer.get_first(), buffer.get_first() + buffer.first_size(),
+                std::back_inserter(out));
+
+        for (form_memory_buffer<>::slices_t::const_iterator i = buffer.get_slices().begin();
+                i != buffer.get_slices().end(); ++i)
+        {
+            // Would be tempting to move the blocks, but C++03 doesn't feature moving.
+            const char* data = &(*i)[0];
+            std::copy(data, data + i->size(), std::back_inserter(out));
+        }
     }
 };
 
@@ -516,11 +608,13 @@ std::string sfmts(const Value& val, const char* fmtspec = 0)
     return out;
 }
 
-template<class Value> inline
-ostdiostream& ostdiostream::operator<<(const Value& v)
+namespace internal
 {
-    *this << sfmt(v, "");
-    return *this;
+template<class Value, class Stream> inline
+void write_default(Stream& s, const Value& v)
+{
+    s << sfmt(v, "");
+}
 }
 
 // Semi-manipulator to add the end-of-line.

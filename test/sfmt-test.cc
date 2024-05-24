@@ -36,7 +36,7 @@ TEST(sfmt_test, formatting) {
   EXPECT_NE(fmt::sfmts(pvar), "AR");
 
   {
-    fmt::ostdiofstream file ("TMPFILE");
+    fmt::ofilestream file ("TMPFILE");
     file << "NUMBER: " << fmt::sfmt(9.5, ".0e") << fmt::seol;
   }
   std::ifstream file ("TMPFILE");
@@ -45,5 +45,14 @@ TEST(sfmt_test, formatting) {
   remove("TMPFILE");
 
   EXPECT_EQ(line, "NUMBER: 1e+01");
+
+  fmt::obufstream s;
+  s << "NUMBER: " << fmt::sfmt(9.5, ".0e");
+
+  std::string tmpbuf;
+  s.copy_to(tmpbuf);
+
+  EXPECT_EQ(tmpbuf, "NUMBER: 1e+01");
+  EXPECT_EQ(s.str(), "NUMBER: 1e+01");
 
 }

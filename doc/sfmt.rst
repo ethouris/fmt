@@ -27,22 +27,26 @@ There's also a version that returns this value as a string:
    template<class Value>
    std::string fmt::sfmts(Value val, const char* format = NULL);
 
-The syntax for ``format`` parameter is the following:
+Here ``format`` is what you would use in the ``%`` tag in printf,
+except the ``%`` character itself, and also with further limitations:
 
-1. Use the numeric specifications (for width and precision) and
-   characters such as ``#'. +-`` as required.
+1. Special format flags ``#'. +-`` and width/precision specification
+   should be used normally, but only if they apply to the value type.
 2. **DO NOT** use any type-specific modifiers (``l``, ``ll``, ``h``
-   or ``L``, as well as ``j``, ``z`` or ``t``).
+   or ``L``, as well as ``j``, ``z`` or ``t``) or any ``PRI*`` macros.
+   Note that ``j``, ``z`` and ``t`` refer to library-defined types
+   that are typedefs to any short/long signed/unsigned integers,
+   and are only provided for convenience for printf.
 3. A special string ``<!!!>`` will be printed after the formatted
    value, if the formatting string contained any wrong characters.
 4. Wrong characters depend on the type. For example, you can't use
    precision for strings, ``x`` for ``double`` or ``u`` for ``int``.
    As a special exception, ``x/X`` and ``o`` are allowed for ``int``,
    despite that the value will be actually displayed as unsigned.
-5. All parts of the format specification are optional. For example,
-   if you don't supply the format flavor (``e/f/g`` for ``double``
-   or ``d/o/x`` for ``int``), the default one will be used: ``g``
-   for ``double``, ``i`` for int, ``u`` for unsigned etc.
+5. Flags that are last in the format specification, which designate the
+   format flavor, designate also the type. Therefore the use of them is
+   optional and a default one is used if not present: ``g`` for floating-point
+   types, ``i`` for signed integer types and ``u`` for unsigned integer types.
 
 Note also that all rules for formatting are determined by the syntax
 used by the ``printf`` function family and differ to those used by
@@ -51,26 +55,26 @@ the {fmt} library.
 Iostream-style FILE wrappers
 ============================
 
-To allow the use of these functions, there is provided also the
-wrapper for ``FILE*`` using ``operator<<`` for sending data to it.
-This is required if you want to use any software that is required
-to be C++03-compatible, that is, where variadic functions are not
-available.
+For convenience of using these functions, there are also some special stream
+classes provided, which define ``operator<<`` in the style of iostream for
+sending data to it. This is required if you want to use any software that must
+be C++03-compatible, that is, where variadic functions are not available. The
+following classes are available:
 
-.. code:: c++
+* ``fmt::ostdiostream``: a simple wrapper for ``FILE*`` intended
+  to be used mainly for ``stdout`` or as a temporary wrapper to
+  some existing ``FILE`` object
+* ``fmt::ofilestream``: a managed wrapper for ``FILE*``
+* ``fmt::obufstream``: a buffering string builder, a replacement
+  for ``std::ostringstream``
 
-   class ostdiostream;
-
-   ostdiostream::ostdiostream(FILE* file);
-
-   template<class Value>
-   ostdiostream& ostdiostream::operator<<(const Value& val);
-
-Versions of ``operator<<`` for ``const char*``, ``std::string`` and
-``fmt::internal::form_memory_buffer`` print contained characters in the
-original form. For all other values there's ``sfmt`` call done internally
-with no format specification. To use any other formatting, you can call
-the ``sfmt`` function explicitly:
+All these classes have defined ``operator<<``, which writes directly
+the passed value in case of ``std::string`` or
+``fmt::internal::form_memory_buffer`` (you can also provide your own
+overloads, just note that ``obufstream`` and ``ostdiostream`` are
+unrelated), and for all other values the ``fmt::sfmt`` function is
+used intermediately. This function should be used explicitly, if you
+want to use any nonstandard formatting:
 
 .. code:: c++
 
@@ -79,21 +83,30 @@ the ``sfmt`` function explicitly:
    sout << "The value is " << sfmt(val, "e")
         << " (around " << sfmt(val, ".08f") << ")\n";
 
+The ``ostdiostream`` class is a simple wrapper around ``FILE*``
+providing the ``operator<<`` definition:
+
+.. code:: c++
+
+   class ostdiostream;
+
+   ostdiostream::ostdiostream(FILE* file);
+
 Additionally for writing to files that have to be opened and closed by
 the user, there's a convenience wrapper:
 
 .. code:: c++
 
-    class ostdiofstream;
+    class ofilestream;
 
-    ostdiofstream::ostdiofstream();
-    ostdiofstream::ostdiofstream(const std::string& filename, const std::string& mode);
-    void ostdiofstream::open(const std::string& filename, const std::string& mode);
-    bool ostdiofstream::good(); // returns false if internal FILE* is NULL
-    void ostdiofstream::attach(FILE* existing_file);
-    FILE* ostdiofstream::detach();   // Sets internal FILE* to NULL, returns previous value
-    int ostdiofstream::close();      // Calls ``fclose`` and returns its result
-    ostdiofstream::~ostdiofstream(); // Closes the file
+    ofilestream::ofilestream();
+    ofilestream::ofilestream(const std::string& filename, const std::string& mode);
+    void ofilestream::open(const std::string& filename, const std::string& mode);
+    bool ofilestream::good(); // returns false if internal FILE* is NULL
+    void ofilestream::attach(FILE* existing_file);
+    FILE* ofilestream::detach();   // Sets internal FILE* to NULL, returns previous value
+    int ofilestream::close();      // Calls ``fclose`` and returns its result
+    ofilestream::~ofilestream(); // Closes the file
 
 The default constructor constructs a NULL-initialized file, which shall not be
 used. The ``open`` method and the constructor with filename and mode simply forward
@@ -102,3 +115,16 @@ calling ``good()`` afterwards. If you use some other function to open a file
 than ``fopen`` to create the ``FILE*`` stream (and it should still be closed
 by ``fclose``), you can also use ``attach()``. The use of ``detach`` can prevent
 the file from being closed in this class's destructor.
+
+And the ``obufstream`` is though of as string builder:
+
+.. code:: c++
+
+    class obufstream;
+
+	size_t size() const; // a total size of a possibly fragmented internal buffer
+    std::string str() const; // creates a solid std::string from the internal buffer
+	void copy_to(OutputContainer& out) const; // copies contents using std::back_inserter
+
+This class is thought of as a replacement for ``std::ostringstream``.
+
