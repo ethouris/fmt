@@ -42,7 +42,9 @@ except the ``%`` character itself, and also with further limitations:
 4. Wrong characters depend on the type. For example, you can't use
    precision for strings, ``x`` for ``double`` or ``u`` for ``int``.
    As a special exception, ``x/X`` and ``o`` are allowed for ``int``,
-   despite that the value will be actually displayed as unsigned.
+   despite that the value will be actually displayed as unsigned. You
+   can't enforce unsigned integer form for ``int`` or ``char`` by using
+   ``u`` tag though; instead simply use ``sfmt<unsigned>(...)``.
 5. Flags that are last in the format specification, which designate the
    format flavor, designate also the type. Therefore the use of them is
    optional and a default one is used if not present: ``g`` for floating-point
