@@ -55,4 +55,11 @@ TEST(sfmt_test, formatting) {
   EXPECT_EQ(tmpbuf, "NUMBER: 1e+01");
   EXPECT_EQ(s.str(), "NUMBER: 1e+01");
 
+  s.clear();
+  std::string loc = "local";
+
+  s << "STRING:" << fmt::sfmt(loc, "10") << "mode";
+
+  EXPECT_EQ(s.str(), "STRING:     localmode");
+
 }
