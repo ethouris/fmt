@@ -38,7 +38,7 @@ private:
     size_t total; // total size in use
 
 public:
-    form_memory_buffer(): initial(0), total(0), reserved(0) {}
+    form_memory_buffer(): initial(0), reserved(0), total(0) {}
 
     // For constants
     template<size_t N>
@@ -214,7 +214,7 @@ struct CheckChar<N, N>
 {
     // Terminal version - if none interrupted with true,
     // eventually return false.
-    static bool is(char c, const char (&series)[N]) { return false; }
+    static bool is(char , const char (&)[N]) { return false; }
 };
 
 template<size_t N> inline
@@ -252,8 +252,8 @@ form_memory_buffer<> fix_format(const char* fmt,
     // All these arrays must contain at least 2 elements,
     // that is one character and terminating zero.
     //Ensure<int, N1 >= 2> c1;
-    Ensure<int, N2 >= 2> c2;
-    Ensure<int, N3 >= 2> c3;
+    Ensure<int, N2 >= 2> c2; (void)c2;
+    Ensure<int, N3 >= 2> c3; (void)c3;
 
     form_memory_buffer<> buf;
     buf.append('%');
@@ -509,6 +509,11 @@ public:
         return *this;
     }
 
+    obufstream& operator<<(const obufstream& source)
+    {
+        return *this << source.buffer;
+    }
+
     template<class Value>
     obufstream& operator<<(const Value& v)
     {
@@ -649,7 +654,7 @@ const internal::form_memory_buffer<2> seol ("\n");
 // Another manipulator. You can add yourself others the same way.
 const struct os_flush_manip {} sflush;
 
-ostdiostream& operator<<(ostdiostream& sout, const os_flush_manip&)
+inline ostdiostream& operator<<(ostdiostream& sout, const os_flush_manip&)
 {
         std::fflush(sout.raw());
         return sout;
