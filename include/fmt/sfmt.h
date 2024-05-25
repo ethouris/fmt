@@ -299,12 +299,6 @@ form_memory_buffer<> fix_format(const char* fmt,
 }
 
 
-template <class Val>
-struct Formatter
-{
-};
-
-
 #define SFMT_FORMAT_FIXER(TYPE, ALLOWED, TYPED, DEFTYPE, WARN) \
 form_memory_buffer<> apply_format_fix(TYPE, const char* fmt) \
 { \
@@ -581,7 +575,6 @@ internal::form_memory_buffer<> sfmt(const Value& val, const char* fmtspec = 0)
 {
     using namespace internal;
 
- // form_memory_buffer<> fstr = Formatter<Value>::fix(fmtspec);
     form_memory_buffer<> fstr = apply_format_fix(val, fmtspec);
     form_memory_buffer<> out;
     size_t bufsize = form_memory_buffer<>::INITIAL_SIZE;
