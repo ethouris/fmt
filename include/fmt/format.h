@@ -4584,7 +4584,7 @@ FMT_INLINE void ffprint_one(Stream& sout, const std::basic_string<CharType>& str
 }
 
 template <class Stream, class CharType>
-FMT_INLINE void ffprint_one(Stream& sout, const std::basic_string_view<CharType>& str)
+FMT_INLINE void ffprint_one(Stream& sout, const detail::std_string_view<CharType>& str)
 {
     detail::write_directly<CharType>(sout, str);
 }
@@ -4659,7 +4659,7 @@ FMT_INLINE void ffcat_one(OutIter out, const std::basic_string<CharType>& str)
 }
 
 template <class OutIter, class CharType>
-FMT_INLINE void ffcat_one(OutIter out, const std::basic_string_view<CharType>& str)
+FMT_INLINE void ffcat_one(OutIter out, const detail::std_string_view<CharType>& str)
 {
     std::copy(str.begin(), str.end(), out);
 }

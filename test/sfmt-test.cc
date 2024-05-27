@@ -55,6 +55,10 @@ TEST(sfmt_test, formatting) {
   EXPECT_EQ(tmpbuf, "NUMBER: 1e+01");
   EXPECT_EQ(s.str(), "NUMBER: 1e+01");
 
+  std::string fragbuf;
+  s.copy_to(fragbuf, 6);
+  EXPECT_EQ(fragbuf, "NUMBER");
+
   s.clear();
   std::string loc = "local";
 

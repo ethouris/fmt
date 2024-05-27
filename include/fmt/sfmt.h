@@ -10,6 +10,9 @@
 // for FILE type from stdio. It has nothing to do with the rest of the {fmt}
 // library, except that it reuses the namespace.
 
+#ifndef INC_FMT_SFMT_H
+#define INC_FMT_SFMT_H
+
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -239,7 +242,11 @@ struct Ensure
 template<class AnyType>
 struct Ensure<AnyType, false>
 {
-    typename AnyType::wrong_condition v = AnyType::wrong_condition;
+    static void CheckIfCharsetNonEmpty()
+    {
+        typename AnyType::wrong_condition v = AnyType::wrong_condition;
+        (void)v;
+    }
 };
 
 template<size_t N1, size_t N2, size_t N3> inline
@@ -490,6 +497,19 @@ public:
         return *this;
     }
 
+    // For unusual manipulation, usually to add NUL termination.
+    // NOTE: you must make sure that you won't use the extended
+    // buffers if the intention was to get a string.
+    void append(char c)
+    {
+        buffer.append(c);
+    }
+
+    const char* bufptr() const
+    {
+        return buffer.get_first();
+    }
+
     template<size_t ANYSIZE>
     obufstream& operator<<(const internal::form_memory_buffer<ANYSIZE>& b)
     {
@@ -557,6 +577,41 @@ public:
             const char* data = &(*i)[0];
             std::copy(data, data + i->size(), std::back_inserter(out));
         }
+    }
+
+    template <class OutputContainer>
+    size_t copy_to(OutputContainer& out, size_t maxsize) const
+    {
+        using namespace internal;
+        size_t avail = maxsize;
+        if (avail < buffer.first_size())
+        {
+            std::copy(buffer.get_first(), buffer.get_first() + avail,
+                    std::back_inserter(out));
+            return maxsize;
+        }
+
+        std::copy(buffer.get_first(), buffer.get_first() + buffer.first_size(),
+                std::back_inserter(out));
+
+        avail -= buffer.first_size();
+
+        for (form_memory_buffer<>::slices_t::const_iterator i = buffer.get_slices().begin();
+                i != buffer.get_slices().end(); ++i)
+        {
+            // Would be tempting to move the blocks, but C++03 doesn't feature moving.
+            const char* data = &(*i)[0];
+
+            if (avail < i->size())
+            {
+                std::copy(data, data + avail, std::back_inserter(out));
+                return maxsize;
+            }
+            std::copy(data, data + i->size(), std::back_inserter(out));
+            avail -= i->size();
+        }
+
+        return maxsize - avail;
     }
 };
 
@@ -662,3 +717,5 @@ inline ostdiostream& operator<<(ostdiostream& sout, const os_flush_manip&)
 
 
 }
+
+#endif
