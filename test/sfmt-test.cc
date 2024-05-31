@@ -19,11 +19,24 @@ TEST(sfmt_test, formatting) {
   EXPECT_EQ(fmt::sfmts(9.5, ".0e"), "1e+01");
   EXPECT_EQ(fmt::sfmts(1e-34, ".1e"), "1.0e-34");
 
-  // In case of printf, precision cannot limit the string size (unlike {fmt}).
-  // EXPECT_EQ(fmt::sfmts("str", ".2"), "st");
-  // EXPECT_EQ(fmt::sfmts("123456\xad", ".6"), "123456");
+  EXPECT_EQ(fmt::sfmts("str", ".2"), "st");
+  EXPECT_EQ(fmt::sfmts("123456\xad", ".6"), "123456");
 
   EXPECT_EQ(fmt::sfmts(0.0, "9.1e"), "  0.0e+00");
+
+  // Now the same, but using config flags
+  EXPECT_EQ(fmt::sfmts(123.0, fmt::sfmc().alt().fixed().precision(0)), "123.");
+  EXPECT_EQ(fmt::sfmts(1.234, fmt::sfmc().fixed().precision(2)), "1.23");
+  EXPECT_EQ(fmt::sfmts(0.001, fmt::sfmc().general().precision(1)), "0.001");
+  EXPECT_EQ(fmt::sfmts(1019666432.0f), "1.01967e+09");
+  EXPECT_EQ(fmt::sfmts(9.5, fmt::sfmc().scientific().precision(0)), "1e+01");
+  EXPECT_EQ(fmt::sfmts(1e-34, fmt::sfmc().scientific().precision(1)), "1.0e-34");
+
+  EXPECT_EQ(fmt::sfmts("str", fmt::sfmc().precision(2)), "st");
+  EXPECT_EQ(fmt::sfmts("123456\xad", fmt::sfmc().precision(6)), "123456");
+
+  EXPECT_EQ(fmt::sfmts(0.0, fmt::sfmc().width(9).precision(1).exp()), "  0.0e+00");
+
 
   char ar[5] = "AR";
   char* par = ar;

@@ -20,12 +20,22 @@ The following function is used for on-demand formatting:
    fmt::internal::form_memory_buffer<>
    		fmt::sfmt(Value val, const char* format = NULL);
 
+   template<class Value>
+   fmt::internal::form_memory_buffer<>
+   		fmt::sfmt(Value val, const fmt::sfmc& config);
+
 There's also a version that returns this value as a string:
 
 .. code:: c++
 
    template<class Value>
    std::string fmt::sfmts(Value val, const char* format = NULL);
+
+   template<class Value>
+   std::string fmt::sfmts(Value val, const fmt::sfmc& config);
+
+String specification based formatting
+=====================================
 
 Here ``format`` is what you would use in the ``%`` tag in printf,
 except the ``%`` character itself, and also with further limitations:
@@ -40,19 +50,55 @@ except the ``%`` character itself, and also with further limitations:
 3. A special string ``<!!!>`` will be printed after the formatted
    value, if the formatting string contained any wrong characters.
 4. Wrong characters depend on the type. For example, you can't use
-   precision for strings, ``x`` for ``double`` or ``u`` for ``int``.
+   ``#`` for strings, ``x`` for ``double`` or ``u`` for ``int``.
    As a special exception, ``x/X`` and ``o`` are allowed for ``int``,
    despite that the value will be actually displayed as unsigned. You
    can't enforce unsigned integer form for ``int`` or ``char`` by using
    ``u`` tag though; instead simply use ``sfmt<unsigned>(...)``.
-5. Flags that are last in the format specification, which designate the
-   format flavor, designate also the type. Therefore the use of them is
-   optional and a default one is used if not present: ``g`` for floating-point
+5. The printf family is using the last character as both the presentation
+   type specifier and type specifier. As type is detected in C++, this
+   flag is optional, and the defaults are: ``g`` for floating-point
    types, ``i`` for signed integer types and ``u`` for unsigned integer types.
 
 Note also that all rules for formatting are determined by the syntax
 used by the ``printf`` function family and differ to those used by
 the {fmt} library.
+
+Structure based formatting
+==========================
+
+Additionally, if you prefer, you may specify the formatting flags using
+a special structure named ``sfmc``. This is intended to be used as a
+temporary object together with methods changing the default values to
+desired ones:
+
+``fmt::sfmt(value, fmt::sfmc().width(10).precision(0).alt())``
+
+The ``sfmc`` structure provides settings that will be then used to craft
+the format string passed then to the ``snprintf`` call. The following
+flag modifier methods are provided:
+
+* ``alt`` - Alternative representation (``#``)
+* ``left`` -  Align to left (``-``)
+* ``right`` -  Align to right (default)
+* ``width`` -  Set the width (with parameter)
+* ``precision`` - Set the precision (with parameter)
+* ``dec`` -  Decimal (default for integers)
+* ``hex`` -  Hexadecimal with lowercase letters
+* ``oct`` -  Octal
+* ``uhex`` -  Hexadecimal with uppercase letters
+* ``general`` - Scientific or fixed as per precision (default)
+* ``ugeneral`` - Like general, with uppercase if scientific
+* ``fhex`` -  Floating-point hexadecimal
+* ``ufhex`` -  Floating-point hexadecimal (uppercase)
+* ``exp/scientific`` -  Scientific presentation for floating-point
+* ``uexp/uscientific`` -  Scientific presentation with uppercase E/INF/NAN
+* ``fixed`` - Fixed-point presentation for floating-point
+* ``nopos`` - Do not prefix positive numbers (default)
+* ``posspace`` - Prefix positive numbers with space
+* ``posplus`` - Prefix positive numbers with plus
+* ``fillzero`` - Fill width-padding with 0
+
    
 Iostream-style FILE wrappers
 ============================
