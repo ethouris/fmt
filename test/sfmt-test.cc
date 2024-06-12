@@ -79,4 +79,8 @@ TEST(sfmt_test, formatting) {
 
   EXPECT_EQ(s.str(), "STRING:     localmode");
 
+  // Multi-arg string building in place
+  std::string joint = (fmt::obufstream() << "NUMBER: " << fmt::sfmt(9.5, ".0e")).str();
+
+  EXPECT_EQ(joint, "NUMBER: 1e+01");
 }

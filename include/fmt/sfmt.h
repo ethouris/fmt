@@ -450,6 +450,9 @@ public:
     SFMTC_TAG(posplus, postype = pos_plus);
     SFMTC_TAG(fillzero, leadzerobit = true);
 
+#undef SFMTC_TAG
+#undef SFMTC_TAG_VAL
+
     // Utility function to store the number for width/precision
     // For C++11 it could be constexpr, but this is C++03-compat code.
     // It's bound to this structure because it's unsafe.
