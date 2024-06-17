@@ -687,6 +687,19 @@ TEST(core_test, is_formattable) {
   static_assert(!fmt::is_formattable<unformattable_scoped_enum>::value, "");
 }
 
+#if FMT_USE_CONCEPTS
+TEST(core_test, formattable) {
+  static_assert(fmt::formattable<char>);
+  static_assert(fmt::formattable<char&>);
+  static_assert(fmt::formattable<char&&>);
+  static_assert(fmt::formattable<const char>);
+  static_assert(fmt::formattable<const char&>);
+  static_assert(fmt::formattable<const char&&>);
+  static_assert(fmt::formattable<int>);
+  static_assert(!fmt::formattable<wchar_t>);
+}
+#endif
+
 TEST(core_test, format_to) {
   auto s = std::string();
   fmt::format_to(std::back_inserter(s), "{}", 42);

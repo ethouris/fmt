@@ -8,17 +8,19 @@
 #ifndef FMT_STD_H_
 #define FMT_STD_H_
 
-#include <atomic>
-#include <bitset>
-#include <complex>
-#include <cstdlib>
-#include <exception>
-#include <memory>
-#include <thread>
-#include <type_traits>
-#include <typeinfo>
-#include <utility>
-#include <vector>
+#ifndef FMT_IMPORT_STD
+#  include <atomic>
+#  include <bitset>
+#  include <complex>
+#  include <cstdlib>
+#  include <exception>
+#  include <memory>
+#  include <thread>
+#  include <type_traits>
+#  include <typeinfo>
+#  include <utility>
+#  include <vector>
+#endif
 
 #include "format.h"
 #include "ostream.h"
@@ -26,25 +28,28 @@
 #if FMT_HAS_INCLUDE(<version>)
 #  include <version>
 #endif
+
+#ifndef FMT_IMPORT_STD
 // Checking FMT_CPLUSPLUS for warning suppression in MSVC.
-#if FMT_CPLUSPLUS >= 201703L
-#  if FMT_HAS_INCLUDE(<filesystem>)
-#    include <filesystem>
+#  if FMT_CPLUSPLUS >= 201703L
+#    if FMT_HAS_INCLUDE(<filesystem>)
+#      include <filesystem>
+#    endif
+#    if FMT_HAS_INCLUDE(<variant>)
+#      include <variant>
+#    endif
+#    if FMT_HAS_INCLUDE(<optional>)
+#      include <optional>
+#    endif
 #  endif
-#  if FMT_HAS_INCLUDE(<variant>)
-#    include <variant>
-#  endif
-#  if FMT_HAS_INCLUDE(<optional>)
-#    include <optional>
-#  endif
-#endif
 
-#if FMT_HAS_INCLUDE(<expected>) && FMT_CPLUSPLUS > 202002L
-#  include <expected>
-#endif
+#  if FMT_HAS_INCLUDE(<expected>) && FMT_CPLUSPLUS > 202002L
+#    include <expected>
+#  endif
 
-#if FMT_CPLUSPLUS > 201703L && FMT_HAS_INCLUDE(<source_location>)
-#  include <source_location>
+#  if FMT_CPLUSPLUS > 201703L && FMT_HAS_INCLUDE(<source_location>)
+#    include <source_location>
+#  endif
 #endif
 
 // GCC 4 does not support FMT_HAS_INCLUDE.
@@ -54,17 +59,6 @@
 // abi::__cxa_demangle().
 #  ifndef __GABIXX_CXXABI_H__
 #    define FMT_HAS_ABI_CXA_DEMANGLE
-#  endif
-#endif
-
-// Check if typeid is available.
-#ifndef FMT_USE_TYPEID
-// __RTTI is for EDG compilers. _CPPRTTI is for MSVC.
-#  if defined(__GXX_RTTI) || FMT_HAS_FEATURE(cxx_rtti) || defined(_CPPRTTI) || \
-      defined(__INTEL_RTTI__) || defined(__RTTI)
-#    define FMT_USE_TYPEID 1
-#  else
-#    define FMT_USE_TYPEID 0
 #  endif
 #endif
 
@@ -422,6 +416,95 @@ template <typename Char> struct formatter<std::error_code, Char> {
   }
 };
 
+#if FMT_USE_RTTI
+namespace detail {
+
+template <typename Char, typename OutputIt>
+auto write_demangled_name(OutputIt out, const std::type_info& ti) -> OutputIt {
+#  ifdef FMT_HAS_ABI_CXA_DEMANGLE
+  int status = 0;
+  std::size_t size = 0;
+  std::unique_ptr<char, void (*)(void*)> demangled_name_ptr(
+      abi::__cxa_demangle(ti.name(), nullptr, &size, &status), &std::free);
+
+  string_view demangled_name_view;
+  if (demangled_name_ptr) {
+    demangled_name_view = demangled_name_ptr.get();
+
+    // Normalization of stdlib inline namespace names.
+    // libc++ inline namespaces.
+    //  std::__1::*       -> std::*
+    //  std::__1::__fs::* -> std::*
+    // libstdc++ inline namespaces.
+    //  std::__cxx11::*             -> std::*
+    //  std::filesystem::__cxx11::* -> std::filesystem::*
+    if (demangled_name_view.starts_with("std::")) {
+      char* begin = demangled_name_ptr.get();
+      char* to = begin + 5;  // std::
+      for (char *from = to, *end = begin + demangled_name_view.size();
+           from < end;) {
+        // This is safe, because demangled_name is NUL-terminated.
+        if (from[0] == '_' && from[1] == '_') {
+          char* next = from + 1;
+          while (next < end && *next != ':') next++;
+          if (next[0] == ':' && next[1] == ':') {
+            from = next + 2;
+            continue;
+          }
+        }
+        *to++ = *from++;
+      }
+      demangled_name_view = {begin, detail::to_unsigned(to - begin)};
+    }
+  } else {
+    demangled_name_view = string_view(ti.name());
+  }
+  return detail::write_bytes<Char>(out, demangled_name_view);
+#  elif FMT_MSC_VERSION
+  const string_view demangled_name(ti.name());
+  for (std::size_t i = 0; i < demangled_name.size(); ++i) {
+    auto sub = demangled_name;
+    sub.remove_prefix(i);
+    if (sub.starts_with("enum ")) {
+      i += 4;
+      continue;
+    }
+    if (sub.starts_with("class ") || sub.starts_with("union ")) {
+      i += 5;
+      continue;
+    }
+    if (sub.starts_with("struct ")) {
+      i += 6;
+      continue;
+    }
+    if (*sub.begin() != ' ') *out++ = *sub.begin();
+  }
+  return out;
+#  else
+  return detail::write_bytes<Char>(out, string_view(ti.name()));
+#  endif
+}
+
+}  // namespace detail
+
+FMT_EXPORT
+template <typename Char>
+struct formatter<std::type_info, Char  // DEPRECATED! Mixing code unit types.
+                 > {
+ public:
+  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
+      -> decltype(ctx.begin()) {
+    return ctx.begin();
+  }
+
+  template <typename Context>
+  auto format(const std::type_info& ti, Context& ctx) const
+      -> decltype(ctx.out()) {
+    return detail::write_demangled_name<Char>(ctx.out(), ti);
+  }
+};
+#endif
+
 FMT_EXPORT
 template <typename T, typename Char>
 struct formatter<
@@ -438,7 +521,7 @@ struct formatter<
     if (it == end || *it == '}') return it;
     if (*it == 't') {
       ++it;
-      with_typename_ = FMT_USE_TYPEID != 0;
+      with_typename_ = FMT_USE_RTTI != 0;
     }
     return it;
   }
@@ -447,65 +530,14 @@ struct formatter<
   auto format(const std::exception& ex, Context& ctx) const
       -> decltype(ctx.out()) {
     auto out = ctx.out();
-    if (!with_typename_)
-      return detail::write_bytes<Char>(out, string_view(ex.what()));
-
-#if FMT_USE_TYPEID
-    const std::type_info& ti = typeid(ex);
-#  ifdef FMT_HAS_ABI_CXA_DEMANGLE
-    int status = 0;
-    std::size_t size = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name_ptr(
-        abi::__cxa_demangle(ti.name(), nullptr, &size, &status), &std::free);
-
-    string_view demangled_name_view;
-    if (demangled_name_ptr) {
-      demangled_name_view = demangled_name_ptr.get();
-
-      // Normalization of stdlib inline namespace names.
-      // libc++ inline namespaces.
-      //  std::__1::*       -> std::*
-      //  std::__1::__fs::* -> std::*
-      // libstdc++ inline namespaces.
-      //  std::__cxx11::*             -> std::*
-      //  std::filesystem::__cxx11::* -> std::filesystem::*
-      if (demangled_name_view.starts_with("std::")) {
-        char* begin = demangled_name_ptr.get();
-        char* to = begin + 5;  // std::
-        for (char *from = to, *end = begin + demangled_name_view.size();
-             from < end;) {
-          // This is safe, because demangled_name is NUL-terminated.
-          if (from[0] == '_' && from[1] == '_') {
-            char* next = from + 1;
-            while (next < end && *next != ':') next++;
-            if (next[0] == ':' && next[1] == ':') {
-              from = next + 2;
-              continue;
-            }
-          }
-          *to++ = *from++;
-        }
-        demangled_name_view = {begin, detail::to_unsigned(to - begin)};
-      }
-    } else {
-      demangled_name_view = string_view(ti.name());
+#if FMT_USE_RTTI
+    if (with_typename_) {
+      out = detail::write_demangled_name<Char>(out, typeid(ex));
+      *out++ = ':';
+      *out++ = ' ';
     }
-    out = detail::write_bytes<Char>(out, demangled_name_view);
-#  elif FMT_MSC_VERSION
-    string_view demangled_name_view(ti.name());
-    if (demangled_name_view.starts_with("class "))
-      demangled_name_view.remove_prefix(6);
-    else if (demangled_name_view.starts_with("struct "))
-      demangled_name_view.remove_prefix(7);
-    out = detail::write_bytes<Char>(out, demangled_name_view);
-#  else
-    out = detail::write_bytes<Char>(out, string_view(ti.name())
-  });
-#  endif
-    *out++ = ':';
-    *out++ = ' ';
-    return detail::write_bytes<Char>(out, string_view(ex.what()));
 #endif
+    return detail::write_bytes<Char>(out, string_view(ex.what()));
   }
 };
 
