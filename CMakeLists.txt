@@ -36,6 +36,12 @@ function(enable_module target)
   endif ()
 endfunction()
 
+set(FMT_USE_CMAKE_MODULES FALSE)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND
+    CMAKE_GENERATOR STREQUAL "Ninja")
+  set(FMT_USE_CMAKE_MODULES TRUE)
+endif ()
+
 # Adds a library compiled with C++20 module support.
 # `enabled` is a CMake variables that specifies if modules are enabled.
 # If modules are disabled `add_module_library` falls back to creating a
@@ -65,8 +71,9 @@ function(add_module_library name)
 
   target_compile_definitions(${name} PRIVATE FMT_MODULE)
 
-  if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND CMAKE_GENERATOR STREQUAL "Ninja")
-    target_sources(${name} PUBLIC FILE_SET fmt TYPE CXX_MODULES FILES ${sources})
+  if (FMT_USE_CMAKE_MODULES)
+    target_sources(${name} PUBLIC FILE_SET fmt TYPE CXX_MODULES
+                   FILES ${sources})
   else()
     # `std` is affected by CMake options and may be higher than C++20.
     get_target_property(std ${name} CXX_STANDARD)
@@ -403,21 +410,18 @@ if (FMT_INSTALL)
 
   set(INSTALL_TARGETS fmt fmt-header-only)
 
-  # Install the library and headers.
-  if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND CMAKE_GENERATOR STREQUAL "Ninja")
-	  install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name}
-			  LIBRARY DESTINATION ${FMT_LIB_DIR}
-			  ARCHIVE DESTINATION ${FMT_LIB_DIR}
-			  PUBLIC_HEADER DESTINATION "${FMT_INC_DIR}/fmt"
-			  FILE_SET fmt DESTINATION "${FMT_INC_DIR}/fmt"
-			  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-  else()
-	  install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name}
-			  LIBRARY DESTINATION ${FMT_LIB_DIR}
-			  ARCHIVE DESTINATION ${FMT_LIB_DIR}
-			  PUBLIC_HEADER DESTINATION "${FMT_INC_DIR}/fmt"
-			  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  set(INSTALL_FILE_SET)
+  if (FMT_USE_CMAKE_MODULES)
+    set(INSTALL_FILE_SET FILE_SET fmt DESTINATION "${FMT_INC_DIR}/fmt")
   endif()
+
+  # Install the library and headers.
+  install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name}
+          LIBRARY DESTINATION ${FMT_LIB_DIR}
+          ARCHIVE DESTINATION ${FMT_LIB_DIR}
+          PUBLIC_HEADER DESTINATION "${FMT_INC_DIR}/fmt"
+          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+          ${INSTALL_FILE_SET})
 
   # Use a namespace because CMake provides better diagnostics for namespaced
   # imported targets.
