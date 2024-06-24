@@ -15,7 +15,8 @@
 
 #include <cstdio>
 #include <cstring>
-#include <cmath>
+#include <cmath> // std::abs
+#include <cstdlib> // std::div
 #include <string>
 #include <vector>
 #include <list>
@@ -260,8 +261,8 @@ form_memory_buffer<> fix_format(const char* fmt,
     // All these arrays must contain at least 2 elements,
     // that is one character and terminating zero.
     //Ensure<int, N1 >= 2> c1;
-    Ensure<int, N2 >= 2> c2; (void)c2;
-    Ensure<int, N3 >= 2> c3; (void)c3;
+    Ensure<int, (N2 >= 2)> c2; (void)c2;
+    Ensure<int, (N3 >= 2)> c3; (void)c3;
 
     form_memory_buffer<> buf;
     buf.append('%');
@@ -311,7 +312,7 @@ form_memory_buffer<> fix_format(const char* fmt,
 inline form_memory_buffer<> apply_format_fix(TYPE, const char* fmt) \
 { \
     return fix_format(fmt, ALLOWED, TYPED, DEFTYPE, WARN); \
-} 
+}
 
 #define SFMT_FORMAT_FIXER_TPL(TPAR, TYPE, ALLOWED, TYPED, DEFTYPE, WARN) \
 template<TPAR>\
@@ -352,7 +353,8 @@ SFMT_FORMAT_FIXER(const char*, "-.", "s", "s", "<!!!>");
 SFMT_FORMAT_FIXER(char*, "-.", "s", "s", "<!!!>");
 SFMT_FORMAT_FIXER_TPL(size_t N, const char (&)[N], "-.", "s", "s", "<!!!>");
 SFMT_FORMAT_FIXER_TPL(size_t N, char (&)[N], "-.", "s", "s", "<!!!>");
-SFMT_FORMAT_FIXER_TPL(class Type, Type*, "-", "p", "p", "<!!!>");
+SFMT_FORMAT_FIXER(void*, "-", "p", "p", "<!!!>");
+SFMT_FORMAT_FIXER(const void*, "-", "p", "p", "<!!!>");
 
 #undef SFMT_FORMAT_FIXER_TPL
 #undef SFMT_FORMAT_FIXER
@@ -430,8 +432,8 @@ public:
     SFMTC_TAG(alt, altbit = true);
     SFMTC_TAG(left, leftbit = true);
     SFMTC_TAG(right, (void)0);
-    SFMTC_TAG_VAL(width, widthbit = true; widthval = abs(val));
-    SFMTC_TAG_VAL(precision, precisionbit = true; precisionval = abs(val));
+    SFMTC_TAG_VAL(width, widthbit = true; widthval = std::abs(val));
+    SFMTC_TAG_VAL(precision, precisionbit = true; precisionval = std::abs(val));
     SFMTC_TAG(dec, (void)0);
     SFMTC_TAG(hex, presentation = flavor_hex);
     SFMTC_TAG(oct, presentation = flavor_oct);
@@ -456,10 +458,10 @@ public:
     // Utility function to store the number for width/precision
     // For C++11 it could be constexpr, but this is C++03-compat code.
     // It's bound to this structure because it's unsafe.
-    static size_t store_number(char* position, int number)
+    static std::size_t store_number(char* position, int number)
     {
-        size_t shiftpos = 0;
-        div_t dm = div(number, 10);
+        std::size_t shiftpos = 0;
+        std::div_t dm = std::div(number, 10);
         if (dm.quot)
             shiftpos = store_number(position, dm.quot);
         position[shiftpos] = '0' + dm.rem;
@@ -471,7 +473,7 @@ public:
     {
         using namespace internal;
 
-        Ensure<int, N >= 2> c3; (void)c3;
+        Ensure<int, (N >= 2)> c3; (void)c3;
 
         form_memory_buffer<> form;
 
