@@ -1734,7 +1734,7 @@ template <typename Char, align::type align = align::left, typename OutputIt>
 FMT_CONSTEXPR auto write_bytes(OutputIt out, string_view bytes,
                                const format_specs& specs = {}) -> OutputIt {
   return write_padded<Char, align>(
-      out, specs, bytes.size(), [bytes](reserve_iterator<OutputIt> it) {
+      out, specs, bytes.size(), [bytes](reserve_iterator<OutputIt> it) -> OutputIt {
         const char* data = bytes.data();
         return copy<Char>(data, data + bytes.size(), it);
       });
@@ -2203,7 +2203,7 @@ FMT_CONSTEXPR FMT_NOINLINE auto write_int_noinline(OutputIt out,
   return write_int<Char>(out, arg, specs, loc);
 }
 template <typename Char, typename T,
-          FMT_ENABLE_IF(is_integral<T>::value &&
+          FMT_ENABLE_IF((is_integral<T>::value || std::is_enum<T>::value) &&
                         !std::is_same<T, bool>::value &&
                         !std::is_same<T, Char>::value)>
 FMT_CONSTEXPR FMT_INLINE auto write(basic_appender<Char> out, T value,
@@ -2215,7 +2215,7 @@ FMT_CONSTEXPR FMT_INLINE auto write(basic_appender<Char> out, T value,
 }
 // An inlined version of write used in format string compilation.
 template <typename Char, typename OutputIt, typename T,
-          FMT_ENABLE_IF(is_integral<T>::value &&
+          FMT_ENABLE_IF((is_integral<T>::value || std::is_enum<T>::value) &&
                         !std::is_same<T, bool>::value &&
                         !std::is_same<T, Char>::value &&
                         !std::is_same<OutputIt, basic_appender<Char>>::value)>
@@ -4559,8 +4559,11 @@ FMT_INLINE void ffprint_one(Stream& sout, const fmt::basic_memory_buffer<CharTyp
     detail::write_directly<CharType>(sout, str);
 }
 
-template <class Stream, class CharType, size_t N>
-FMT_INLINE void ffprint_one(Stream& sout, const CharType (&str)[N])
+// XXX NOTE: Not possible to use a constant string here because this doesn't
+// distinguish between a "string" and char array[20] = "string". The first
+// has the correct 7 size, the other is 20 size despite that it's '\0' at 7.
+template <class Stream, class CharType>
+FMT_INLINE void ffprint_one(Stream& sout, const CharType *str)
 {
     // Bah. This is stupid.
     struct ArrayAdapter
@@ -4572,7 +4575,10 @@ FMT_INLINE void ffprint_one(Stream& sout, const CharType (&str)[N])
         size_t size() const { return s; }
     };
 
-    detail::write_directly<CharType>(sout, ArrayAdapter {str, N});
+    // Unfortunately all stream writers require the size, so you need
+    // to find it out first. This will be even faster if you use std::string,
+    // or at least string_view.
+    detail::write_directly<CharType>(sout, ArrayAdapter {str, strlen(str)});
 }
 
 // Duh. Leave it for now, but this isn't done the right way.
@@ -4634,10 +4640,15 @@ FMT_INLINE void ffcat_one(OutIter out, const fmt::basic_memory_buffer<CharType>&
     std::copy(str.begin(), str.end(), out);
 }
 
-template <class OutIter, class CharType, size_t N>
-FMT_INLINE void ffcat_one(OutIter out, const CharType (&str)[N])
+// XXX NOTE: Not possible to use a constant string here because this doesn't
+// distinguish between a "string" and char array[20] = "string". The first
+// has the correct 7 size, the other is 20 size despite that it's '\0' at 7.
+template <class OutIter, class CharType>
+FMT_INLINE void ffcat_one(OutIter out, const CharType *str)
 {
-    std::copy(str, str + N, out);
+    // No copy_until algorithm ;)
+    while (*str)
+        *out++ = *str++;
 }
 
 template <class OutIter, class AnyOther>
@@ -4680,8 +4691,7 @@ FMT_INLINE std::wstring wffcat(Args&&... args)
 template <class Container, class... Args>
 FMT_INLINE Container& ffwrite(Container& out, Args&&... args)
 {
-    typedef typename Container::value_type CharType;
-    ffcat_chain<CharType>((out), args...);
+    ffcat_chain<Container>((out), args...);
     return out;
 }
 

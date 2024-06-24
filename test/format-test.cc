@@ -2443,6 +2443,8 @@ TEST(format_test, tagged_formatters) {
   EXPECT_EQ(fmt::ffmts(0.0, "9.1e"), "  0.0e+00");
   EXPECT_EQ(fmt::ffmts(0.0, fmt::width(9), fmt::precision(1), fmt::scientific), "  0.0e+00");
 
+  EXPECT_EQ(fmt::ffmts(test_ns::color::blue, fmt::hex), "2");
+
   // This is for compile and exception test only.
   /*
   fmt::ffprint(std::cout, fmt::ffmt(123.0, fmt::fixed, fmt::falt, fmt::precision(0)),

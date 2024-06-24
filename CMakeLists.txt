@@ -168,6 +168,8 @@ option(FMT_OS "Include OS-specific APIs." ON)
 option(FMT_MODULE "Build a module instead of a traditional library." OFF)
 option(FMT_SYSTEM_HEADERS "Expose headers with marking them as system." OFF)
 option(FMT_UNICODE "Enable Unicode support." ON)
+option(FMT_ENABLE_PIC "Enable position-independent code" ON)
+option(FMT_ENABLE_DSUFFIX "Add d letter suffix for debug-mode library" OFF)
 
 if (FMT_TEST AND FMT_MODULE)
   # The tests require {fmt} to be compiled as traditional library
@@ -323,12 +325,18 @@ target_include_directories(fmt ${FMT_SYSTEM_HEADERS_ATTRIBUTE} PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${FMT_INC_DIR}>)
 
-set(FMT_DEBUG_POSTFIX d CACHE STRING "Debug library postfix.")
+if (NOT DEFINED FMT_DEBUG_POSTFIX)
+	set(FMT_DEBUG_POSTFIX "" CACHE STRING "Debug library postfix.")
+	if (FMT_ENABLE_DSUFFIX)
+		set(FMT_DEBUG_POSTFIX d)
+	endif()
+endif()
 
 set_target_properties(fmt PROPERTIES
   VERSION ${FMT_VERSION} SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
   PUBLIC_HEADER "${FMT_HEADERS}"
   DEBUG_POSTFIX "${FMT_DEBUG_POSTFIX}"
+  POSITION_INDEPENDENT_CODE ${FMT_ENABLE_PIC}
 
   # Workaround for Visual Studio 2017:
   # Ensure the .pdb is created with the same name and in the same directory
