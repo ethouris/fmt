@@ -2445,6 +2445,13 @@ TEST(format_test, tagged_formatters) {
 
   EXPECT_EQ(fmt::ffmts(test_ns::color::blue, fmt::hex), "2");
 
+  int in = 31337;
+  long ln = 31337;
+  long long lln = 31337;
+  EXPECT_EQ(fmt::ffmts(in, "03"), "31337");
+  EXPECT_EQ(fmt::ffmts(ln, "03"), "31337");
+  EXPECT_EQ(fmt::ffmts(lln, "03"), "31337");
+
   // This is for compile and exception test only.
   /*
   fmt::ffprint(std::cout, fmt::ffmt(123.0, fmt::fixed, fmt::falt, fmt::precision(0)),

@@ -2456,14 +2456,14 @@ FMT_INLINE void format_specs::apply(const CharType* fmtstr)
     // at compile time and possibly also passed by string_view.
 
     dynamic_format_specs<CharType> output;
+    auto argtype = mapped_type_constant<ValueType, format_context>::value;
     basic_format_parse_context<CharType> ctx(fmtstr);
 
     const CharType* begin = fmtstr,
           * end = fmtstr + detail::length(fmtstr),
           * past;
 
-    past = parse_format_specs(begin, end, (output), (ctx),
-            type_constant<ValueType, CharType>::value);
+    past = parse_format_specs(begin, end, (output), (ctx), argtype);
 
     // Ignore the call completely if the format wasn't parsed
     // NOTE: formatting that uses embedded width or precision WILL NOT
