@@ -2307,9 +2307,13 @@ struct format_specs {
   // Could use a constructor, but this messes up with the default construction.
   template <typename ValueType, typename... Args>
   static constexpr format_specs with(Args... args) {
-    format_specs model;
-    model.apply_chain<ValueType>(args...);
-    return model;
+      return format_specs().apply_all<ValueType>(args...);
+  }
+
+  template <typename ValueType, typename... Args>
+  format_specs apply_all(Args... args) {
+      apply_chain<ValueType>(args...);
+      return *this;
   }
 
   // Note that the tag system doesn't check if applying particular tag
@@ -2397,10 +2401,10 @@ struct format_specs {
   void apply(const CharType* fmtstr);
 
   template<typename ValueType>
-  constexpr void apply_chain() {}
+  void apply_chain() {}
 
   template <typename ValueType, typename Arg1, typename... Args>
-  constexpr void apply_chain(Arg1 a1, Args... args)
+  void apply_chain(Arg1 a1, Args... args)
   {
     apply<ValueType>(a1);
     apply_chain<ValueType>(args...);
