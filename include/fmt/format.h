@@ -52,6 +52,8 @@
 #  endif
 #  include <stdexcept>     // std::runtime_error
 #  include <string>        // std::string
+#  include <iterator>      // std::back_inserter
+#  include <algorithm>     // std::copy
 #  include <system_error>  // std::system_error
 
 // Checking FMT_CPLUSPLUS for warning suppression in MSVC.
